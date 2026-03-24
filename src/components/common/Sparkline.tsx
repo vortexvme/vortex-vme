@@ -1,5 +1,3 @@
-import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts'
-
 interface Props {
   data: number[]
   color?: string
@@ -8,33 +6,31 @@ interface Props {
 }
 
 export function Sparkline({ data, color = '#00B388', width = 80, height = 28 }: Props) {
-  const chartData = data.map((v, i) => ({ i, v }))
+  if (!data || data.length < 2) return null
+
+  const min = Math.min(...data)
+  const max = Math.max(...data)
+  const range = max - min || 1
+  const pad = 2
+
+  const points = data
+    .map((v, i) => {
+      const x = pad + (i / (data.length - 1)) * (width - pad * 2)
+      const y = pad + ((1 - (v - min) / range) * (height - pad * 2))
+      return `${x},${y}`
+    })
+    .join(' ')
 
   return (
-    <ResponsiveContainer width={width} height={height}>
-      <LineChart data={chartData}>
-        <Line
-          type="monotone"
-          dataKey="v"
-          stroke={color}
-          strokeWidth={1.5}
-          dot={false}
-          isAnimationActive={false}
-        />
-        <Tooltip
-          content={({ active, payload }) => {
-            if (!active || !payload?.length) return null
-            return (
-              <div
-                className="text-2xs px-2 py-1 rounded"
-                style={{ background: '#1A2035', border: '1px solid #2A3450' }}
-              >
-                {Number(payload[0].value).toFixed(1)}%
-              </div>
-            )
-          }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+    <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }}>
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
   )
 }
