@@ -10,20 +10,9 @@ import { clsx } from 'clsx'
 export function HostsPage() {
   const [search, setSearch] = useState('')
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['servers'],
-    queryFn: () => listServers({ max: 50 }),
+    queryKey: ['servers', 'hypervisors'],
+    queryFn: () => listServers({ max: 100, vmHypervisor: true }),
     staleTime: 60_000,
-    select: (d) => ({
-      ...d,
-      servers: d.servers.filter(
-        (s) =>
-          s.computeServerType?.nodeType === 'hypervisor' ||
-          s.computeServerType?.code?.includes('hypervisor') ||
-          s.computeServerType?.code === 'vmware-esxi' ||
-          s.computeServerType?.code?.startsWith('esxi') ||
-          s.computeServerType?.code?.startsWith('kvm'),
-      ),
-    }),
   })
 
   const servers = (data?.servers ?? []).filter(

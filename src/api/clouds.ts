@@ -2,6 +2,7 @@ import { apiClient } from './client'
 import {
   ZonesResponse,
   Zone,
+  ClustersResponse,
   ServerGroupsResponse,
   NetworksResponse,
   StorageVolumesResponse,
@@ -17,6 +18,15 @@ export async function listZones(params: { max?: number } = {}): Promise<ZonesRes
 export async function getZone(id: number): Promise<Zone> {
   const resp = await apiClient.get<{ zone: Zone }>(`/api/zones/${id}`)
   return resp.data.zone
+}
+
+export async function listClusters(
+  params: { max?: number } = {},
+): Promise<ClustersResponse> {
+  const resp = await apiClient.get<ClustersResponse>('/api/clusters', {
+    params: { max: 100, ...params },
+  })
+  return resp.data
 }
 
 export async function listServerGroups(

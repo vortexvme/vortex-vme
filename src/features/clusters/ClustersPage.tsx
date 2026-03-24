@@ -1,38 +1,28 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { listServerGroups, listZones } from '@/api/clouds'
-import { listServers } from '@/api/servers'
+import { listClusters } from '@/api/clouds'
 import { PageLoader } from '@/components/common/LoadingSpinner'
 import { Search, RefreshCw, Layers } from 'lucide-react'
 import { clsx } from 'clsx'
+import { formatBytes } from '@/utils/format'
 
 export function ClustersPage() {
   const [search, setSearch] = useState('')
 
-  const { data: groupsData, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['server-groups'],
-    queryFn: () => listServerGroups(),
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['clusters'],
+    queryFn: () => listClusters(),
     staleTime: 60_000,
     retry: 0,
   })
 
-  const { data: serversData } = useQuery({
-    queryKey: ['servers'],
-    queryFn: () => listServers({ max: 50 }),
-    staleTime: 60_000,
-  })
+  const clusters = (data?.clusters ?? [])
+    .filter((c) => c.layout?.provisionTypeCode === 'morpheus')
+    .filter((c) => !search || c.name.toLowerCase().includes(search.toLowerCase()))
 
-  const { data: zonesData } = useQuery({
-    queryKey: ['zones'],
-    queryFn: () => listZones(),
-    staleTime: 60_000,
-  })
-
-  const groups = (groupsData?.serverGroups ?? []).filter(
-    (g) => !search || g.name.toLowerCase().includes(search.toLowerCase()),
-  )
-  const servers = serversData?.servers ?? []
-  const zones = zonesData?.zones ?? []
+  const total = (data?.clusters ?? []).filter(
+    (c) => c.layout?.provisionTypeCode === 'morpheus',
+  ).length
 
   if (isLoading) return <PageLoader />
 
@@ -45,7 +35,7 @@ export function ClustersPage() {
         <div>
           <h1 className="text-base font-semibold text-white">Clusters</h1>
           <p className="text-xs mt-0.5" style={{ color: '#566278' }}>
-            {groupsData?.serverGroups?.length ?? 0} clusters
+            {total} Morpheus clusters
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -66,10 +56,10 @@ export function ClustersPage() {
       </div>
 
       <div className="flex-1 overflow-auto">
-        {groups.length === 0 ? (
+        {clusters.length === 0 ? (
           <div className="empty-state">
             <Layers size={32} style={{ color: '#566278' }} />
-            <p className="text-sm font-medium" style={{ color: '#8B9AB0' }}>No clusters found</p>
+            <p className="text-sm font-medium" style={{ color: '#8B9AB0' }}>No Morpheus clusters found</p>
           </div>
         ) : (
           <table className="data-table">
@@ -77,38 +67,60 @@ export function ClustersPage() {
               <tr>
                 <th>Name</th>
                 <th>Cloud</th>
-                <th>Hosts</th>
-                <th>Description</th>
+                <th>Status</th>
+                <th>Workers</th>
+                <th>CPU</th>
+                <th>Memory</th>
               </tr>
             </thead>
             <tbody>
-              {groups.map((group) => {
-                const zone = zones.find((z) => z.id === group.zone?.id)
-                const hostCount = servers.filter((s) =>
-                  group.servers?.includes(s.id),
-                ).length
+              {clusters.map((cluster) => {
+                const cpuPct = cluster.workerStats?.cpuUsage ?? 0
+                const memUsed = cluster.workerStats?.usedMemory ?? 0
+                const memMax = cluster.workerStats?.maxMemory ?? 0
 
                 return (
-                  <tr key={group.id}>
+                  <tr key={cluster.id}>
                     <td>
                       <div className="flex items-center gap-2">
                         <Layers size={13} style={{ color: '#00B388' }} />
-                        <span className="font-medium text-white">{group.name}</span>
+                        <span className="font-medium text-white">{cluster.name}</span>
                       </div>
                     </td>
                     <td style={{ color: '#8B9AB0' }}>
-                      {zone?.name ?? group.zone?.name ?? '—'}
+                      {cluster.zone?.name ?? '—'}
+                    </td>
+                    <td>
+                      <span
+                        className="text-xs"
+                        style={{
+                          color: cluster.status === 'ok' || cluster.status === 'running'
+                            ? '#00B388'
+                            : '#F59E0B',
+                        }}
+                      >
+                        {cluster.status ?? '—'}
+                      </span>
                     </td>
                     <td>
                       <span
                         className="text-xs px-1.5 py-0.5 rounded"
                         style={{ background: '#1E2A45', color: '#8B9AB0' }}
                       >
-                        {hostCount}
+                        {cluster.workersCount ?? cluster.servers?.length ?? 0}
                       </span>
                     </td>
-                    <td style={{ color: '#566278' }}>
-                      {group.description || '—'}
+                    <td>
+                      <span className="text-xs" style={{ color: '#8B9AB0' }}>
+                        {cpuPct > 0 ? `${cpuPct.toFixed(1)}%` : '—'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-xs" style={{ color: '#8B9AB0' }}>
+                        {memMax > 0
+                          ? `${formatBytes(memUsed)} / ${formatBytes(memMax)}`
+                          : '—'}
+                      </span>
                     </td>
                   </tr>
                 )
@@ -122,7 +134,7 @@ export function ClustersPage() {
         className="flex items-center gap-4 px-4 py-1.5 text-2xs"
         style={{ borderTop: '1px solid #1E2A45', color: '#566278', background: '#0D1117' }}
       >
-        <span>Showing {groups.length} clusters</span>
+        <span>Showing {clusters.length} clusters</span>
         {isFetching && <span style={{ color: '#00B388' }}>Refreshing…</span>}
       </div>
     </div>

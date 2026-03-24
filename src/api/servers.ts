@@ -2,7 +2,7 @@ import { apiClient } from './client'
 import { ServersResponse, ComputeServer } from '@/types/morpheus'
 
 export async function listServers(
-  params: { max?: number; offset?: number; phrase?: string; zoneId?: number; serverGroupId?: number } = {},
+  params: { max?: number; offset?: number; phrase?: string; zoneId?: number; serverGroupId?: number; vmHypervisor?: boolean } = {},
 ): Promise<ServersResponse> {
   const resp = await apiClient.get<ServersResponse>('/api/servers', {
     params: { max: 100, ...params },

@@ -46,7 +46,9 @@ export function Sidebar() {
     staleTime: 60_000,
   })
 
-  const zones = zonesData?.zones ?? []
+  const zones = (zonesData?.zones ?? []).filter(
+    (z) => z.zoneType?.code === 'morpheus',
+  )
   const instances = instancesData?.instances ?? []
   const servers = serversData?.servers ?? []
 

@@ -52,7 +52,40 @@ export interface ZonesResponse {
   meta: PaginationMeta
 }
 
-// ─── Server Group / Cluster ───────────────────────────────────────────────────
+// ─── Cluster ─────────────────────────────────────────────────────────────────
+
+export interface Cluster {
+  id: number
+  name: string
+  description?: string
+  status: string
+  enabled: boolean
+  managed: boolean
+  zone?: { id: number; name: string }
+  type?: { id: number; name: string }
+  layout?: { id: number; name: string; provisionTypeCode: string }
+  site?: { id: number; name: string }
+  servers?: Array<{
+    id: number
+    name: string
+    computeServerType?: { id: number; code: string; nodeType: string }
+  }>
+  workerStats?: {
+    usedMemory: number
+    maxMemory: number
+    cpuUsage: number
+  }
+  workersCount?: number
+  dateCreated: string
+  lastUpdated: string
+}
+
+export interface ClustersResponse {
+  clusters: Cluster[]
+  meta: PaginationMeta
+}
+
+// ─── Server Group (legacy) ────────────────────────────────────────────────────
 
 export interface ServerGroup {
   id: number
