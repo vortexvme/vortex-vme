@@ -1,7 +1,7 @@
 import { formatBytes, formatPercent } from '@/utils/format'
 import { StatusBadge } from '@/components/common/StatusDot'
 import type { Instance } from '@/types/morpheus'
-import { Server, Cpu, MemoryStick, HardDrive, Network, Tag } from 'lucide-react'
+import { Server, Cpu, Network, Tag } from 'lucide-react'
 
 interface Props {
   instance: Instance

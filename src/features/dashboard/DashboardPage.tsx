@@ -66,7 +66,7 @@ export function DashboardPage() {
 
   const { data: zonesData } = useQuery({
     queryKey: ['zones'],
-    queryFn: listZones,
+    queryFn: () => listZones(),
     staleTime: 120_000,
   })
 

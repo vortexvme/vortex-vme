@@ -34,7 +34,7 @@ export function VMCreateWizard({ onClose }: Props) {
 
   const { data: zonesData } = useQuery({
     queryKey: ['zones'],
-    queryFn: listZones,
+    queryFn: () => listZones(),
     staleTime: 60_000,
   })
 

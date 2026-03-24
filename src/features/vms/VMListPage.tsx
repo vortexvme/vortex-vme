@@ -218,7 +218,7 @@ export function VMListPage() {
         cell: ({ row }) => {
           // Generate mock sparkline from current value for demonstration
           const base = row.original.stats?.cpuUsage ?? 0
-          const pts = Array.from({ length: 12 }, (_, i) =>
+          const pts = Array.from({ length: 12 }, (_) =>
             Math.max(0, Math.min(100, base + (Math.random() - 0.5) * 20)),
           )
           return <Sparkline data={pts} />

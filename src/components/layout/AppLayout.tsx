@@ -7,7 +7,7 @@ import { VMCreateWizard } from '@/features/vms/VMCreateWizard'
 import { useUiStore } from '@/store/uiStore'
 
 export function AppLayout() {
-  const { sidebarCollapsed } = useTreeStore()
+  useTreeStore()
   const { isCreateVMOpen, closeCreateVM } = useUiStore()
 
   return (

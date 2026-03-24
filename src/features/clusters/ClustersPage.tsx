@@ -11,7 +11,7 @@ export function ClustersPage() {
 
   const { data: groupsData, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['server-groups'],
-    queryFn: listServerGroups,
+    queryFn: () => listServerGroups(),
     staleTime: 60_000,
   })
 
@@ -23,7 +23,7 @@ export function ClustersPage() {
 
   const { data: zonesData } = useQuery({
     queryKey: ['zones'],
-    queryFn: listZones,
+    queryFn: () => listZones(),
     staleTime: 60_000,
   })
 
