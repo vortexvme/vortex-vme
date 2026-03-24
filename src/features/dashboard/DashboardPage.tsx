@@ -53,14 +53,14 @@ export function DashboardPage() {
 
   const { data: instancesData } = useQuery({
     queryKey: ['instances'],
-    queryFn: () => listInstances({ max: 200 }),
+    queryFn: () => listInstances({ max: 50 }),
     staleTime: 30_000,
     refetchInterval: 60_000,
   })
 
   const { data: serversData } = useQuery({
     queryKey: ['servers'],
-    queryFn: () => listServers({ max: 200 }),
+    queryFn: () => listServers({ max: 50 }),
     staleTime: 60_000,
   })
 

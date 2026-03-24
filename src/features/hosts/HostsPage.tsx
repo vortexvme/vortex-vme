@@ -11,7 +11,7 @@ export function HostsPage() {
   const [search, setSearch] = useState('')
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['servers'],
-    queryFn: () => listServers({ max: 200 }),
+    queryFn: () => listServers({ max: 50 }),
     staleTime: 60_000,
   })
 

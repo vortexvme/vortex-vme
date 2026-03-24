@@ -11,7 +11,7 @@ export function StoragePage() {
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['storage-volumes'],
-    queryFn: () => listStorageVolumes({ max: 200 }),
+    queryFn: () => listStorageVolumes({ max: 50 }),
     staleTime: 60_000,
   })
 

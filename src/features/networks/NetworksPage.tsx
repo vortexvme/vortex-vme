@@ -10,7 +10,7 @@ export function NetworksPage() {
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['networks'],
-    queryFn: () => listNetworks({ max: 200 }),
+    queryFn: () => listNetworks({ max: 50 }),
     staleTime: 60_000,
   })
 

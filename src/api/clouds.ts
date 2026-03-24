@@ -66,7 +66,7 @@ export async function listLayouts(instanceTypeCode?: string) {
 
 export async function listInstanceTypes() {
   const resp = await apiClient.get('/api/library/instance-types', {
-    params: { max: 200 },
+    params: { max: 50 },
   })
   return resp.data
 }

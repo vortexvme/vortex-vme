@@ -17,7 +17,7 @@ export function ClustersPage() {
 
   const { data: serversData } = useQuery({
     queryKey: ['servers'],
-    queryFn: () => listServers({ max: 200 }),
+    queryFn: () => listServers({ max: 50 }),
     staleTime: 60_000,
   })
 

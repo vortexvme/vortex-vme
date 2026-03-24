@@ -41,6 +41,7 @@ export function clearTokens() {
 export const apiClient = axios.create({
   baseURL: '/',
   headers: { 'Content-Type': 'application/json' },
+  timeout: 30_000,
 })
 
 // Attach bearer token on every request
@@ -120,13 +121,13 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Surface API errors as toasts (except 401 handled above)
-    if (error.response?.status !== 401) {
-      const message =
-        (error.response?.data as { msg?: string })?.msg ||
-        error.message ||
-        'API request failed'
-      toast.error(message, { duration: 5000 })
+    // Surface 5xx server errors as a single toast (not per-query 4xx)
+    const status = error.response?.status
+    if (status && status >= 500) {
+      toast.error(`Server error ${status} — check VME Manager connectivity`, {
+        id: 'api-server-error',
+        duration: 5000,
+      })
     }
 
     return Promise.reject(error)

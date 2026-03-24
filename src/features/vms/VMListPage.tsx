@@ -58,7 +58,7 @@ export function VMListPage() {
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['instances'],
-    queryFn: () => listInstances({ max: 200 }),
+    queryFn: () => listInstances({ max: 50 }),
     staleTime: 30_000,
   })
 
