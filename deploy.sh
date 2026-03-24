@@ -128,6 +128,7 @@ print_ok "Build complete"
 print_step "Deploying static files"
 mkdir -p "$STATIC_DIR"
 rsync -a --delete "$APP_DIR/dist/" "$STATIC_DIR/"
+mkdir -p "$(dirname "$STATIC_DIR")"
 chown -R www-data:www-data "/var/www/${APP_NAME}"
 print_ok "Static files deployed to $STATIC_DIR"
 

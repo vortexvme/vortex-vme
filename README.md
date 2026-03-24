@@ -98,8 +98,10 @@ To apply a new version of the application on an already-deployed server:
 cd /opt/morpheus-vme-classic
 sudo git pull
 sudo npm install --no-audit --no-fund
-sudo npm run build
+sudo npm run build 2>&1
+sudo mkdir -p /var/www/morpheus-vme-classic/dist
 sudo rsync -a --delete dist/ /var/www/morpheus-vme-classic/dist/
+sudo chown -R www-data:www-data /var/www/morpheus-vme-classic
 sudo nginx -s reload
 ```
 
