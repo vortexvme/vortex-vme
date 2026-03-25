@@ -1,31 +1,42 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { listStorageVolumes } from '@/api/clouds'
+import { useNavigate } from 'react-router-dom'
+import { listAllDataStores } from '@/api/clouds'
 import { PageLoader } from '@/components/common/LoadingSpinner'
 import { formatBytes } from '@/utils/format'
 import { Search, RefreshCw, HardDrive } from 'lucide-react'
 import { clsx } from 'clsx'
 
+const DATASTORE_TYPES = ['directory', 'generic']
+
+function typeLabel(type: string) {
+  if (type === 'directory') return 'Directory Pool'
+  if (type === 'generic') return 'Generic'
+  if (type === 'vmfs') return 'VMFS'
+  return type
+}
+
 export function StoragePage() {
   const [search, setSearch] = useState('')
+  const navigate = useNavigate()
 
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['storage-volumes'],
-    queryFn: () => listStorageVolumes({ max: 50 }),
-    staleTime: 60_000,
+    queryKey: ['datastores'],
+    queryFn: () => listAllDataStores(),
+    staleTime: 120_000,
+    retry: 0,
   })
 
-  const volumes = (data?.storageVolumes ?? []).filter(
-    (v) =>
-      !search ||
-      v.name.toLowerCase().includes(search.toLowerCase()) ||
-      v.zone?.name?.toLowerCase().includes(search.toLowerCase()),
-  )
+  const datastores = (data ?? [])
+    .filter((ds) => DATASTORE_TYPES.includes(ds.type))
+    .filter(
+      (ds) =>
+        !search ||
+        ds.name.toLowerCase().includes(search.toLowerCase()) ||
+        ds.zone?.name?.toLowerCase().includes(search.toLowerCase()),
+    )
 
   if (isLoading) return <PageLoader />
-
-  const totalStorage = volumes.reduce((acc, v) => acc + (v.maxStorage ?? 0), 0)
-  const usedStorage = volumes.reduce((acc, v) => acc + (v.usedStorage ?? 0), 0)
 
   return (
     <div className="flex flex-col h-full">
@@ -36,8 +47,7 @@ export function StoragePage() {
         <div>
           <h1 className="text-base font-semibold text-white">Storage</h1>
           <p className="text-xs mt-0.5" style={{ color: '#566278' }}>
-            {data?.storageVolumes?.length ?? 0} datastores
-            {totalStorage > 0 && ` · ${formatBytes(usedStorage)} / ${formatBytes(totalStorage)}`}
+            {datastores.length} datastores
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -58,7 +68,7 @@ export function StoragePage() {
       </div>
 
       <div className="flex-1 overflow-auto">
-        {volumes.length === 0 ? (
+        {datastores.length === 0 ? (
           <div className="empty-state">
             <HardDrive size={32} style={{ color: '#566278' }} />
             <p className="text-sm font-medium" style={{ color: '#8B9AB0' }}>No datastores found</p>
@@ -71,43 +81,40 @@ export function StoragePage() {
                 <th>Cloud</th>
                 <th>Type</th>
                 <th>Capacity</th>
-                <th>Used</th>
                 <th>Free</th>
                 <th>Usage</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {volumes.map((vol) => {
-                const pct = vol.maxStorage > 0
-                  ? ((vol.usedStorage ?? 0) / vol.maxStorage) * 100
-                  : 0
+              {datastores.map((ds) => {
+                const storMax = ds.storageSize ?? 0
+                const storFree = ds.freeSpace ?? ds.freeSize ?? 0
+                const storUsed = storMax > 0 ? storMax - storFree : 0
+                const pct = storMax > 0 ? (storUsed / storMax) * 100 : 0
 
                 return (
-                  <tr key={vol.id}>
+                  <tr
+                    key={ds.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/storage/${ds.id}`)}
+                  >
                     <td>
                       <div className="flex items-center gap-2">
                         <HardDrive size={12} style={{ color: '#F59E0B' }} />
-                        <span className="font-medium text-white">{vol.name}</span>
+                        <span className="font-medium text-white">{ds.name}</span>
                       </div>
                     </td>
-                    <td style={{ color: '#8B9AB0' }}>{vol.zone?.name ?? '—'}</td>
-                    <td style={{ color: '#566278' }}>{vol.volumeType?.name ?? '—'}</td>
+                    <td style={{ color: '#8B9AB0' }}>{ds.zone?.name ?? '—'}</td>
+                    <td style={{ color: '#566278' }}>{typeLabel(ds.type)}</td>
                     <td style={{ color: '#D4D9E3' }}>
-                      {vol.maxStorage ? formatBytes(vol.maxStorage) : '—'}
-                    </td>
-                    <td style={{ color: '#D4D9E3' }}>
-                      {vol.usedStorage ? formatBytes(vol.usedStorage) : '—'}
+                      {storMax > 0 ? formatBytes(storMax) : '—'}
                     </td>
                     <td style={{ color: '#8B9AB0' }}>
-                      {vol.freeStorage
-                        ? formatBytes(vol.freeStorage)
-                        : vol.maxStorage && vol.usedStorage
-                          ? formatBytes(vol.maxStorage - vol.usedStorage)
-                          : '—'}
+                      {storFree > 0 ? formatBytes(storFree) : '—'}
                     </td>
                     <td>
-                      {vol.maxStorage > 0 ? (
+                      {storMax > 0 ? (
                         <div className="flex items-center gap-2">
                           <div className="progress-bar w-20">
                             <div
@@ -118,9 +125,7 @@ export function StoragePage() {
                               style={{ width: `${Math.min(pct, 100)}%` }}
                             />
                           </div>
-                          <span className="text-2xs" style={{ color: '#8B9AB0' }}>
-                            {pct.toFixed(0)}%
-                          </span>
+                          <span className="text-2xs" style={{ color: '#8B9AB0' }}>{pct.toFixed(0)}%</span>
                         </div>
                       ) : (
                         <span style={{ color: '#566278' }}>—</span>
@@ -129,11 +134,9 @@ export function StoragePage() {
                     <td>
                       <span
                         className="text-xs"
-                        style={{
-                          color: vol.active !== false ? '#00B388' : '#EF4444',
-                        }}
+                        style={{ color: ds.onlineStatus !== false ? '#00B388' : '#EF4444' }}
                       >
-                        {vol.status ?? (vol.active !== false ? 'active' : 'inactive')}
+                        {ds.onlineStatus !== false ? 'online' : 'offline'}
                       </span>
                     </td>
                   </tr>
@@ -148,7 +151,7 @@ export function StoragePage() {
         className="flex items-center gap-4 px-4 py-1.5 text-2xs"
         style={{ borderTop: '1px solid #1E2A45', color: '#566278', background: '#0D1117' }}
       >
-        <span>Showing {volumes.length} datastores</span>
+        <span>Showing {datastores.length} datastores</span>
         {isFetching && <span style={{ color: '#00B388' }}>Refreshing…</span>}
       </div>
     </div>

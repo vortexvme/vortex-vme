@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { listInstances } from '@/api/instances'
 import { listServers } from '@/api/servers'
-import { listClusters, listNetworks, listStorageVolumes } from '@/api/clouds'
+import { listClusters, listNetworks, listAllDataStores } from '@/api/clouds'
 import {
   ChevronRight,
   ChevronDown,
@@ -109,9 +109,7 @@ export function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [expanded, setExpanded] = useState<Set<string>>(
-    new Set(['vms', 'clusters']),
-  )
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const toggle = (id: string) =>
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -140,10 +138,11 @@ export function Sidebar() {
     queryFn: () => listNetworks({ max: 50 }),
     staleTime: 60_000,
   })
-  const { data: storageData } = useQuery({
-    queryKey: ['storage-volumes'],
-    queryFn: () => listStorageVolumes({ max: 50 }),
-    staleTime: 60_000,
+  const { data: datastoresData } = useQuery({
+    queryKey: ['datastores'],
+    queryFn: () => listAllDataStores(),
+    staleTime: 120_000,
+    retry: 0,
   })
 
   const instances = instancesData?.instances ?? []
@@ -152,7 +151,9 @@ export function Sidebar() {
   )
   const clusters = clustersData?.clusters ?? []
   const networks = networksData?.networks ?? []
-  const storageVolumes = storageData?.storageVolumes ?? []
+  const datastores = (datastoresData ?? []).filter(
+    (ds) => ds.type === 'directory' || ds.type === 'generic',
+  )
 
   const p = location.pathname
 
@@ -277,18 +278,19 @@ export function Sidebar() {
           id="storage"
           label="Storage"
           icon={HardDrive}
-          count={storageVolumes.length}
+          count={datastores.length}
           expanded={expanded.has('storage')}
           onToggle={() => toggle('storage')}
           active={p === '/storage'}
           onLabelClick={() => navigate('/storage')}
         >
-          {storageVolumes.map((vol) => (
+          {datastores.map((ds) => (
             <TreeItem
-              key={vol.id}
-              label={vol.name}
-              active={false}
-              onClick={() => navigate('/storage')}
+              key={ds.id}
+              label={ds.name}
+              sub={ds.zone?.name}
+              active={p === `/storage/${ds.id}`}
+              onClick={() => navigate(`/storage/${ds.id}`)}
             />
           ))}
         </Section>

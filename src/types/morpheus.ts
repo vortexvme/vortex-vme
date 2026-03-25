@@ -159,6 +159,15 @@ export interface ServersResponse {
 
 // ─── Instance / VM ────────────────────────────────────────────────────────────
 
+export interface ContainerNetworkInterface {
+  id: number
+  name?: string
+  primaryInterface?: boolean
+  network?: { id: number; name: string }
+  ipAddress?: string
+  ipSubnet?: string
+}
+
 export interface Container {
   id: number
   name: string
@@ -180,6 +189,7 @@ export interface Container {
   maxStorage: number
   coresPerSocket?: number
   stats?: ContainerStats
+  interfaces?: ContainerNetworkInterface[]
   dateCreated?: string
   lastUpdated?: string
 }
@@ -327,6 +337,24 @@ export interface Network {
 export interface NetworksResponse {
   networks: Network[]
   meta: PaginationMeta
+}
+
+// ─── Data Store ───────────────────────────────────────────────────────────────
+
+export interface DataStore {
+  id: number
+  name: string
+  type: string
+  freeSpace?: number
+  onlineStatus?: boolean
+  zone?: { id: number; name: string }
+  storageSize?: number
+  freeSize?: number
+  active?: boolean
+}
+
+export interface DataStoresResponse {
+  dataStores: DataStore[]
 }
 
 // ─── Storage Volume ───────────────────────────────────────────────────────────

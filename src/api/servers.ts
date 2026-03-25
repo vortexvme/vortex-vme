@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import { ServersResponse, ComputeServer } from '@/types/morpheus'
+import { ServersResponse, ComputeServer, ProcessesResponse } from '@/types/morpheus'
 
 export async function listServers(
   params: { max?: number; offset?: number; phrase?: string; zoneId?: number; serverGroupId?: number; vmHypervisor?: boolean } = {},
@@ -15,4 +15,15 @@ export async function getServer(id: number): Promise<ComputeServer> {
     `/api/servers/${id}`,
   )
   return resp.data.server
+}
+
+export async function getServerHistory(
+  id: number,
+  params: { max?: number } = {},
+): Promise<ProcessesResponse> {
+  const resp = await apiClient.get<ProcessesResponse>(
+    `/api/servers/${id}/history`,
+    { params: { max: 50, ...params } },
+  )
+  return resp.data
 }

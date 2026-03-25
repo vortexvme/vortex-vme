@@ -176,6 +176,7 @@ export function SummaryTab({ instance }: Props) {
           ['Instance ID', instance.id],
           ['Hostname', instance.hostName || container?.hostname || '—'],
           ['IP Address', ip || '—'],
+          ['Host', container?.server?.name ?? '—'],
           ['Cloud', instance.cloud?.name ?? '—'],
           ['Group', instance.group?.name ?? '—'],
           ['Plan', instance.plan?.name ?? '—'],
@@ -212,28 +213,47 @@ export function SummaryTab({ instance }: Props) {
         </div>
         {instance.containers?.length > 0 ? (
           <div className="space-y-3">
-            {instance.containers.slice(0, 4).map((c, i) => (
-              <div
-                key={c.id}
-                className="p-2.5 rounded"
-                style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-white">
-                    Container {i + 1}
-                  </span>
-                  <StatusBadge status={c.status} />
-                </div>
-                <div className="text-xs space-y-0.5" style={{ color: '#8B9AB0' }}>
-                  {c.ip && <div>IP: <span className="font-mono text-white">{c.ip}</span></div>}
-                  {c.internalIp && <div>Internal: <span className="font-mono text-white">{c.internalIp}</span></div>}
-                  {c.externalIp && <div>External: <span className="font-mono text-white">{c.externalIp}</span></div>}
-                </div>
-              </div>
-            ))}
+            {instance.containers.slice(0, 4).flatMap((c) =>
+              (c.interfaces ?? []).length > 0
+                ? c.interfaces!.map((iface) => (
+                    <div
+                      key={iface.id}
+                      className="p-2.5 rounded"
+                      style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
+                    >
+                      <div className="text-xs font-medium text-white mb-1">
+                        {iface.network?.name ?? iface.name ?? 'Unknown Network'}
+                      </div>
+                      <div className="text-xs space-y-0.5" style={{ color: '#8B9AB0' }}>
+                        {iface.ipAddress && (
+                          <div>IP: <span className="font-mono text-white">{iface.ipAddress}</span></div>
+                        )}
+                        {iface.ipSubnet && (
+                          <div>Subnet: <span className="font-mono">{iface.ipSubnet}</span></div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                : [
+                    <div
+                      key={c.id}
+                      className="p-2.5 rounded"
+                      style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
+                    >
+                      <div className="text-xs space-y-0.5" style={{ color: '#8B9AB0' }}>
+                        {(c.ip ?? c.internalIp) && (
+                          <div>IP: <span className="font-mono text-white">{c.ip ?? c.internalIp}</span></div>
+                        )}
+                        {c.externalIp && (
+                          <div>External: <span className="font-mono text-white">{c.externalIp}</span></div>
+                        )}
+                      </div>
+                    </div>,
+                  ],
+            )}
           </div>
         ) : (
-          <p className="text-xs" style={{ color: '#566278' }}>No containers</p>
+          <p className="text-xs" style={{ color: '#566278' }}>No network info</p>
         )}
       </div>
 

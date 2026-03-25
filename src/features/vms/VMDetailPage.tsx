@@ -25,7 +25,6 @@ import { clsx } from 'clsx'
 const TABS = [
   { id: 'summary', label: 'Summary' },
   { id: 'monitor', label: 'Monitor' },
-  { id: 'configure', label: 'Configure' },
   { id: 'snapshots', label: 'Snapshots' },
   { id: 'tasks', label: 'Tasks & Events' },
 ] as const
@@ -205,74 +204,8 @@ export function VMDetailPage() {
             <MonitorTab instanceId={instanceId} />
           </Suspense>
         )}
-        {activeTab === 'configure' && (
-          <ConfigureTab instance={instance} />
-        )}
         {activeTab === 'snapshots' && <SnapshotsTab instanceId={instanceId} />}
         {activeTab === 'tasks' && <TasksTab instanceId={instanceId} />}
-      </div>
-    </div>
-  )
-}
-
-function ConfigureTab({ instance }: { instance: ReturnType<typeof getInstance> extends Promise<infer T> ? T : never }) {
-  return (
-    <div className="grid grid-cols-2 gap-4 max-w-3xl">
-      <div className="card col-span-2">
-        <div className="card-title">General Configuration</div>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-          {[
-            ['Instance ID', instance.id],
-            ['Name', instance.name],
-            ['Description', instance.description || '—'],
-            ['Cloud', instance.cloud?.name],
-            ['Plan', instance.plan?.name || '—'],
-            ['Layout', instance.layout?.name || '—'],
-            ['Instance Type', instance.instanceType?.name || '—'],
-            ['Created By', instance.createdBy?.username || '—'],
-            ['Owner', instance.owner?.username || '—'],
-          ].map(([label, value]) => (
-            <div key={label as string} className="flex gap-2">
-              <dt style={{ color: '#566278', minWidth: 110, fontSize: 12 }}>{label}:</dt>
-              <dd style={{ color: '#D4D9E3', fontSize: 12 }}>{String(value ?? '—')}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-
-      <div className="card">
-        <div className="card-title">Resources</div>
-        <dl className="grid grid-cols-1 gap-y-3 text-sm">
-          {[
-            ['vCPUs', `${instance.maxCores ?? instance.containers?.[0]?.maxCores ?? '—'}`],
-            ['Memory', instance.maxMemory ? `${(instance.maxMemory / (1024 ** 3)).toFixed(1)} GB` : '—'],
-            ['Storage', instance.maxStorage ? `${(instance.maxStorage / (1024 ** 3)).toFixed(0)} GB` : '—'],
-          ].map(([label, value]) => (
-            <div key={label as string} className="flex gap-2">
-              <dt style={{ color: '#566278', minWidth: 80, fontSize: 12 }}>{label}:</dt>
-              <dd style={{ color: '#D4D9E3', fontSize: 12 }}>{String(value)}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-
-      <div className="card">
-        <div className="card-title">Tags</div>
-        {instance.tags && instance.tags.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {instance.tags.map((tag) => (
-              <span
-                key={tag.id}
-                className="text-xs px-2 py-0.5 rounded"
-                style={{ background: '#1E2A45', color: '#8B9AB0' }}
-              >
-                {tag.name}{tag.value ? `: ${tag.value}` : ''}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs" style={{ color: '#566278' }}>No tags</p>
-        )}
       </div>
     </div>
   )

@@ -12,6 +12,7 @@ import { ClustersPage } from '@/features/clusters/ClustersPage'
 import { ClusterDetailPage } from '@/features/clusters/ClusterDetailPage'
 import { NetworksPage } from '@/features/networks/NetworksPage'
 import { StoragePage } from '@/features/storage/StoragePage'
+import { StorageDetailPage } from '@/features/storage/StorageDetailPage'
 
 export default function App() {
   return (
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="clusters/:id" element={<ClusterDetailPage />} />
           <Route path="networks" element={<NetworksPage />} />
           <Route path="storage" element={<StoragePage />} />
+          <Route path="storage/:id" element={<StorageDetailPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
