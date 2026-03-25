@@ -150,7 +150,9 @@ export function Sidebar() {
     (s) => s.osMorpheusType !== 'esxi' && s.osType !== 'esxi',
   )
   const clusters = clustersData?.clusters ?? []
-  const networks = networksData?.networks ?? []
+  const networks = (networksData?.networks ?? []).filter(
+    (n) => !(n.type?.name ?? '').toLowerCase().includes('vmware'),
+  )
   const DATASTORE_TYPES = ['directory', 'localdir', 'generic', 'localgeneric']
   const datastores = (datastoresData ?? []).filter(
     (ds) => DATASTORE_TYPES.includes((ds.type ?? '').toLowerCase()),

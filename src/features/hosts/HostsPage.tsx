@@ -15,11 +15,15 @@ export function HostsPage() {
     staleTime: 60_000,
   })
 
-  const servers = (data?.servers ?? []).filter(
+  const allHypervisors = (data?.servers ?? []).filter(
+    (s) => s.osMorpheusType !== 'esxi' && s.osType !== 'esxi',
+  )
+
+  const servers = allHypervisors.filter(
     (s) =>
       !search ||
       s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.cloud?.name?.toLowerCase().includes(search.toLowerCase()),
+      (s.zone?.name ?? s.cloud?.name ?? '').toLowerCase().includes(search.toLowerCase()),
   )
 
   if (isLoading) return <PageLoader />
@@ -33,7 +37,7 @@ export function HostsPage() {
         <div>
           <h1 className="text-base font-semibold text-white">Hosts</h1>
           <p className="text-xs mt-0.5" style={{ color: '#566278' }}>
-            {data?.servers?.length ?? 0} hypervisors
+            {allHypervisors.length} hypervisors
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -93,7 +97,7 @@ export function HostsPage() {
                     <td>
                       <StatusBadge status={server.status} />
                     </td>
-                    <td style={{ color: '#8B9AB0' }}>{server.cloud?.name ?? '—'}</td>
+                    <td style={{ color: '#8B9AB0' }}>{server.zone?.name ?? server.cloud?.name ?? '—'}</td>
                     <td>
                       <span className="font-mono text-xs" style={{ color: '#8B9AB0' }}>
                         {server.internalIp ?? server.externalIp ?? '—'}
@@ -134,7 +138,7 @@ export function HostsPage() {
                         className="text-xs px-1.5 py-0.5 rounded"
                         style={{ background: '#1E2A45', color: '#8B9AB0' }}
                       >
-                        {server.runningCount ?? 0} / {server.totalCount ?? 0}
+                        {server.containers?.length ?? 0}
                       </span>
                     </td>
                     <td style={{ color: '#566278' }}>
@@ -152,7 +156,7 @@ export function HostsPage() {
         className="flex items-center gap-4 px-4 py-1.5 text-2xs"
         style={{ borderTop: '1px solid #1E2A45', color: '#566278', background: '#0D1117' }}
       >
-        <span>Showing {servers.length} of {data?.servers?.length ?? 0} hosts</span>
+        <span>Showing {servers.length} of {allHypervisors.length} hosts</span>
         {isFetching && <span style={{ color: '#00B388' }}>Refreshing…</span>}
       </div>
     </div>

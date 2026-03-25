@@ -16,13 +16,15 @@ export function NetworksPage() {
     staleTime: 60_000,
   })
 
-  const networks = (data?.networks ?? []).filter(
-    (n) =>
-      !search ||
-      n.name.toLowerCase().includes(search.toLowerCase()) ||
-      n.cidr?.includes(search) ||
-      n.zone?.name?.toLowerCase().includes(search.toLowerCase()),
-  )
+  const networks = (data?.networks ?? [])
+    .filter((n) => !(n.type?.name ?? '').toLowerCase().includes('vmware'))
+    .filter(
+      (n) =>
+        !search ||
+        n.name.toLowerCase().includes(search.toLowerCase()) ||
+        n.cidr?.includes(search) ||
+        n.zone?.name?.toLowerCase().includes(search.toLowerCase()),
+    )
 
   if (isLoading) return <PageLoader />
 

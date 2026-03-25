@@ -94,8 +94,7 @@ export function VMListPage() {
       rows = rows.filter(
         (i) =>
           i.name.toLowerCase().includes(q) ||
-          i.cloud?.name?.toLowerCase().includes(q) ||
-          (i.containers[0]?.ip ?? '').includes(q),
+          i.cloud?.name?.toLowerCase().includes(q),
       )
     }
     return rows
@@ -148,18 +147,6 @@ export function VMListPage() {
           <span style={{ color: '#8B9AB0' }}>{info.getValue() ?? '—'}</span>
         ),
         size: 140,
-      }),
-      col.display({
-        id: 'ip',
-        header: 'IP Address',
-        cell: ({ row }) => {
-          const ip =
-            row.original.containers?.[0]?.ip ??
-            row.original.containers?.[0]?.internalIp ??
-            '—'
-          return <span style={{ color: '#8B9AB0', fontFamily: 'monospace' }}>{ip}</span>
-        },
-        size: 130,
       }),
       col.display({
         id: 'cpu',

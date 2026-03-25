@@ -113,6 +113,7 @@ export interface ComputeServer {
   status: string
   powerState?: string
   cloud?: { id: number; name: string; code: string }
+  zone?: { id: number; name: string }
   serverGroup?: { id: number; name: string }
   computeServerType?: {
     id: number
@@ -219,6 +220,7 @@ export interface Instance {
   instanceType?: { id: number; code: string; name: string }
   layout?: { id: number; name: string }
   containers: Container[]
+  servers?: number[]
   connectionInfo?: { ip?: string; port?: number }[]
   ip?: string
   hostName?: string

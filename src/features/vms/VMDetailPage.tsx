@@ -54,10 +54,11 @@ export function VMDetailPage() {
     staleTime: 60_000,
   })
 
-  const container = instance?.containers?.[0]
+  // instance.servers[] contains the server IDs hosting this instance
+  const hostServerId = instance?.servers?.[0] ?? instance?.containers?.[0]?.server?.id
   const hostName =
-    container?.server?.name ??
-    hypervisorsData?.servers?.find((s) => s.id === container?.server?.id)?.name
+    instance?.containers?.[0]?.server?.name ??
+    hypervisorsData?.servers?.find((s) => s.id === hostServerId)?.name
 
   const mutation = useMutation({
     mutationFn: async (action: string) => {

@@ -72,6 +72,7 @@ function ResourceGauge({
 
 export function SummaryTab({ instance, hostName }: Props) {
   const container = instance.containers?.[0]
+  const fallbackIp = instance.connectionInfo?.[0]?.ip ?? container?.ip ?? container?.internalIp
   const stats = instance.stats ?? container?.stats
 
   const ip =
@@ -242,11 +243,14 @@ export function SummaryTab({ instance, hostName }: Props) {
                       style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
                     >
                       <div className="text-xs space-y-0.5" style={{ color: '#8B9AB0' }}>
-                        {(c.ip ?? c.internalIp) && (
-                          <div>IP: <span className="font-mono text-white">{c.ip ?? c.internalIp}</span></div>
+                        {fallbackIp && (
+                          <div>IP: <span className="font-mono text-white">{fallbackIp}</span></div>
                         )}
-                        {c.externalIp && (
+                        {c.externalIp && c.externalIp !== fallbackIp && (
                           <div>External: <span className="font-mono text-white">{c.externalIp}</span></div>
+                        )}
+                        {!fallbackIp && !c.externalIp && (
+                          <div style={{ color: '#566278' }}>No network info available</div>
                         )}
                       </div>
                     </div>,
