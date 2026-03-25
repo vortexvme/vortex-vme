@@ -164,6 +164,7 @@ export interface ServersResponse {
 export interface ContainerNetworkInterface {
   id: number
   name?: string
+  label?: string
   primaryInterface?: boolean
   network?: { id: number; name: string }
   ipAddress?: string

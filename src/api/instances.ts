@@ -1,6 +1,7 @@
 import { apiClient } from './client'
 import {
   Instance,
+  Container,
   InstancesResponse,
   SnapshotsResponse,
   ProcessesResponse,
@@ -31,6 +32,13 @@ export async function getInstance(id: number): Promise<Instance> {
     `/api/instances/${id}`,
   )
   return resp.data.instance
+}
+
+export async function getContainer(id: number): Promise<Container> {
+  const resp = await apiClient.get<{ container: Container }>(
+    `/api/containers/${id}`,
+  )
+  return resp.data.container
 }
 
 export async function getInstanceStats(id: number): Promise<InstanceStats> {

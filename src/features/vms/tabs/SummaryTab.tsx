@@ -1,11 +1,11 @@
 import { formatBytes, formatPercent } from '@/utils/format'
 import { StatusBadge } from '@/components/common/StatusDot'
-import type { Instance } from '@/types/morpheus'
+import type { Instance, Container } from '@/types/morpheus'
 import { Server, Cpu, Network, Tag } from 'lucide-react'
 
 interface Props {
   instance: Instance
-  hostName?: string
+  containerDetail?: Container
 }
 
 function InfoCard({
@@ -70,13 +70,16 @@ function ResourceGauge({
   )
 }
 
-export function SummaryTab({ instance, hostName }: Props) {
+export function SummaryTab({ instance, containerDetail }: Props) {
   const container = instance.containers?.[0]
-  const fallbackIp = instance.connectionInfo?.[0]?.ip ?? container?.ip ?? container?.internalIp
   const stats = instance.stats ?? container?.stats
 
   const ip =
+    containerDetail?.ip ?? containerDetail?.internalIp ??
     container?.ip ?? container?.internalIp ?? instance.connectionInfo?.[0]?.ip
+
+  const hostName = containerDetail?.server?.name
+  const interfaces = containerDetail?.interfaces ?? []
 
   return (
     <div className="grid grid-cols-3 gap-4 max-w-5xl">
@@ -213,49 +216,39 @@ export function SummaryTab({ instance, hostName }: Props) {
           <Network size={12} style={{ color: '#00B388' }} />
           Network
         </div>
-        {instance.containers?.length > 0 ? (
+        {interfaces.length > 0 ? (
           <div className="space-y-3">
-            {instance.containers.slice(0, 4).flatMap((c) =>
-              (c.interfaces ?? []).length > 0
-                ? c.interfaces!.map((iface) => (
-                    <div
-                      key={iface.id}
-                      className="p-2.5 rounded"
-                      style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
-                    >
-                      <div className="text-xs font-medium text-white mb-1">
-                        {iface.network?.name ?? iface.name ?? 'Unknown Network'}
-                      </div>
-                      <div className="text-xs space-y-0.5" style={{ color: '#8B9AB0' }}>
-                        {iface.ipAddress && (
-                          <div>IP: <span className="font-mono text-white">{iface.ipAddress}</span></div>
-                        )}
-                        {iface.ipSubnet && (
-                          <div>Subnet: <span className="font-mono">{iface.ipSubnet}</span></div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                : [
-                    <div
-                      key={c.id}
-                      className="p-2.5 rounded"
-                      style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
-                    >
-                      <div className="text-xs space-y-0.5" style={{ color: '#8B9AB0' }}>
-                        {fallbackIp && (
-                          <div>IP: <span className="font-mono text-white">{fallbackIp}</span></div>
-                        )}
-                        {c.externalIp && c.externalIp !== fallbackIp && (
-                          <div>External: <span className="font-mono text-white">{c.externalIp}</span></div>
-                        )}
-                        {!fallbackIp && !c.externalIp && (
-                          <div style={{ color: '#566278' }}>No network info available</div>
-                        )}
-                      </div>
-                    </div>,
-                  ],
-            )}
+            {interfaces.map((iface) => (
+              <div
+                key={iface.id}
+                className="p-2.5 rounded"
+                style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
+              >
+                <div className="text-xs font-medium text-white mb-1">
+                  {iface.network?.name ?? iface.name ?? 'Unknown Network'}
+                </div>
+                <div className="text-xs space-y-0.5" style={{ color: '#8B9AB0' }}>
+                  {iface.label && (
+                    <div>Adapter: <span style={{ color: '#D4D9E3' }}>{iface.label}</span></div>
+                  )}
+                  {iface.ipAddress && (
+                    <div>IP: <span className="font-mono" style={{ color: '#D4D9E3' }}>{iface.ipAddress}</span></div>
+                  )}
+                  {iface.ipSubnet && (
+                    <div>Subnet: <span className="font-mono">{iface.ipSubnet}</span></div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : ip ? (
+          <div
+            className="p-2.5 rounded"
+            style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
+          >
+            <div className="text-xs" style={{ color: '#8B9AB0' }}>
+              IP: <span className="font-mono" style={{ color: '#D4D9E3' }}>{ip}</span>
+            </div>
           </div>
         ) : (
           <p className="text-xs" style={{ color: '#566278' }}>No network info</p>

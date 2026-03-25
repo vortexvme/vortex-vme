@@ -12,8 +12,7 @@ import {
   RefreshCw,
   ExternalLink,
 } from 'lucide-react'
-import { getInstance, startInstance, stopInstance, restartInstance, suspendInstance } from '@/api/instances'
-import { listServers } from '@/api/servers'
+import { getInstance, getContainer, startInstance, stopInstance, restartInstance, suspendInstance } from '@/api/instances'
 import { StatusBadge } from '@/components/common/StatusDot'
 import { PageLoader } from '@/components/common/LoadingSpinner'
 import { SummaryTab } from './tabs/SummaryTab'
@@ -48,17 +47,13 @@ export function VMDetailPage() {
     enabled: !!instanceId,
   })
 
-  const { data: hypervisorsData } = useQuery({
-    queryKey: ['servers', 'hypervisors'],
-    queryFn: () => listServers({ max: 100, vmHypervisor: true }),
-    staleTime: 60_000,
+  const containerId = instance?.containers?.[0]?.id
+  const { data: containerDetail } = useQuery({
+    queryKey: ['container', containerId],
+    queryFn: () => getContainer(containerId!),
+    enabled: !!containerId,
+    staleTime: 30_000,
   })
-
-  // instance.servers[] contains the server IDs hosting this instance
-  const hostServerId = instance?.servers?.[0] ?? instance?.containers?.[0]?.server?.id
-  const hostName =
-    instance?.containers?.[0]?.server?.name ??
-    hypervisorsData?.servers?.find((s) => s.id === hostServerId)?.name
 
   const mutation = useMutation({
     mutationFn: async (action: string) => {
@@ -211,7 +206,7 @@ export function VMDetailPage() {
 
       {/* Tab Content */}
       <div className="flex-1 overflow-auto p-4">
-        {activeTab === 'summary' && <SummaryTab instance={instance} hostName={hostName} />}
+        {activeTab === 'summary' && <SummaryTab instance={instance} containerDetail={containerDetail} />}
         {activeTab === 'monitor' && (
           <Suspense fallback={<PageLoader />}>
             <MonitorTab instanceId={instanceId} />
