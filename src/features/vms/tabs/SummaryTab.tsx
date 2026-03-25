@@ -1,12 +1,11 @@
 import { formatBytes, formatPercent } from '@/utils/format'
 import { StatusBadge } from '@/components/common/StatusDot'
-import type { Instance, Container } from '@/types/morpheus'
+import type { Instance, ComputeServer } from '@/types/morpheus'
 import { Server, Cpu, Network, Tag } from 'lucide-react'
 
 interface Props {
   instance: Instance
-  containerDetail?: Container
-  fallbackHostName?: string
+  vmServer?: ComputeServer
 }
 
 function InfoCard({
@@ -71,16 +70,18 @@ function ResourceGauge({
   )
 }
 
-export function SummaryTab({ instance, containerDetail, fallbackHostName }: Props) {
+export function SummaryTab({ instance, vmServer }: Props) {
   const container = instance.containers?.[0]
   const stats = instance.stats ?? container?.stats
 
   const ip =
-    containerDetail?.ip ?? containerDetail?.internalIp ??
+    vmServer?.internalIp ?? vmServer?.externalIp ??
     container?.ip ?? container?.internalIp ?? instance.connectionInfo?.[0]?.ip
 
-  const hostName = containerDetail?.server?.name ?? fallbackHostName
-  const interfaces = containerDetail?.interfaces ?? []
+  // parentServer is the hypervisor (hvm01 etc.)
+  const hostName = vmServer?.parentServer?.name
+  // interfaces from the server record contain network name and adapter name
+  const interfaces = vmServer?.interfaces ?? []
 
   return (
     <div className="grid grid-cols-3 gap-4 max-w-5xl">
@@ -225,19 +226,20 @@ export function SummaryTab({ instance, containerDetail, fallbackHostName }: Prop
                 className="p-2.5 rounded"
                 style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
               >
-                <div className="text-xs font-medium text-white mb-1">
-                  {iface.network?.name ?? iface.name ?? 'Unknown Network'}
+                <div className="text-xs font-medium text-white mb-1.5">
+                  {iface.network?.name ?? 'Unknown Network'}
                 </div>
-                <div className="text-xs space-y-0.5" style={{ color: '#8B9AB0' }}>
-                  {iface.label && (
-                    <div>Adapter: <span style={{ color: '#D4D9E3' }}>{iface.label}</span></div>
+                <div className="text-xs space-y-1" style={{ color: '#8B9AB0' }}>
+                  {iface.name && (
+                    <div>Adapter: <span style={{ color: '#D4D9E3' }}>{iface.name}</span></div>
                   )}
                   {iface.ipAddress && (
                     <div>IP: <span className="font-mono" style={{ color: '#D4D9E3' }}>{iface.ipAddress}</span></div>
                   )}
-                  {iface.ipSubnet && (
-                    <div>Subnet: <span className="font-mono">{iface.ipSubnet}</span></div>
+                  {iface.macAddress && (
+                    <div>MAC: <span className="font-mono">{iface.macAddress}</span></div>
                   )}
+                  <div>DHCP: <span style={{ color: iface.dhcp ? '#00B388' : '#566278' }}>{iface.dhcp ? 'Yes' : 'No'}</span></div>
                 </div>
               </div>
             ))}

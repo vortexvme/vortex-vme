@@ -102,6 +102,19 @@ export interface ServerGroupsResponse {
 
 // ─── Server / Host ────────────────────────────────────────────────────────────
 
+export interface ServerNetworkInterface {
+  id: number
+  name?: string
+  primaryInterface?: boolean
+  dhcp?: boolean
+  active?: boolean
+  macAddress?: string
+  ipAddress?: string
+  ipv6Address?: string
+  network?: { id: number; name: string }
+  networkGroup?: { id: number; name: string }
+}
+
 export interface ComputeServer {
   id: number
   name: string
@@ -115,6 +128,7 @@ export interface ComputeServer {
   cloud?: { id: number; name: string; code: string }
   zone?: { id: number; name: string }
   serverGroup?: { id: number; name: string }
+  parentServer?: { id: number; name: string }
   computeServerType?: {
     id: number
     name: string
@@ -133,6 +147,7 @@ export interface ComputeServer {
   runningCount?: number
   totalCount?: number
   containers?: number[]
+  interfaces?: ServerNetworkInterface[]
   dateCreated: string
   lastUpdated: string
   agentInstalled?: boolean
