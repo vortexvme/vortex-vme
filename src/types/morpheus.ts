@@ -115,6 +115,18 @@ export interface ServerNetworkInterface {
   networkGroup?: { id: number; name: string }
 }
 
+export interface ServerOs {
+  id: number
+  code: string
+  name: string
+  vendor?: string
+  category?: string
+  osFamily?: string
+  osVersion?: string
+  bitCount?: number
+  platform?: string
+}
+
 export interface ComputeServer {
   id: number
   name: string
@@ -138,8 +150,19 @@ export interface ComputeServer {
   plan?: { id: number; name: string; code: string }
   osType?: string
   osMorpheusType?: string
+  serverOs?: ServerOs
+  platform?: string
+  platformVersion?: string
+  agentInstalled?: boolean
+  agentVersion?: string
+  // Hardware fields (returned for physical hosts)
+  cpuModel?: string
+  hardwareName?: string
+  hardwareVendor?: string
+  iscsiIqn?: string
   stats?: ServerStats
   maxCores: number
+  coresPerSocket?: number
   maxMemory: number
   usedMemory?: number
   maxStorage: number
@@ -150,7 +173,6 @@ export interface ComputeServer {
   interfaces?: ServerNetworkInterface[]
   dateCreated: string
   lastUpdated: string
-  agentInstalled?: boolean
   managed?: boolean
   enabled?: boolean
 }

@@ -196,25 +196,48 @@ function HostSummaryTab({
       <div className="card">
         <div className="card-title">Properties</div>
         <dl className="space-y-2.5 mt-2">
-          {[
+          {([
             ['Hostname', server.hostname],
-            ['OS Type', server.osMorpheusType ?? server.osType],
             ['IP Address', server.internalIp ?? server.externalIp],
             ['Cloud', server.zone?.name ?? server.cloud?.name],
-            ['Plan', server.plan?.name],
             ['Type', server.computeServerType?.name],
-            ['Agent Installed', server.agentInstalled ? 'Yes' : 'No'],
-            ['Created', server.dateCreated ? new Date(server.dateCreated).toLocaleString() : undefined],
-          ]
+            ['Platform', [server.platform, server.platformVersion].filter(Boolean).join(' ') || undefined],
+            ['Operating System', server.serverOs?.name],
+            ['Cores', server.maxCores ? `${server.maxCores} cores` : undefined],
+            ['Agent Version', server.agentVersion],
+            ['Created', server.dateCreated ? new Date(server.dateCreated).toLocaleDateString() : undefined],
+          ] as [string, string | undefined][])
             .filter(([, v]) => v)
             .map(([label, value]) => (
-              <div key={label as string} className="flex gap-2">
-                <dt className="text-xs shrink-0" style={{ color: '#566278', width: 110 }}>{label}:</dt>
-                <dd className="text-xs text-white truncate">{value as string}</dd>
+              <div key={label} className="flex gap-2">
+                <dt className="text-xs shrink-0" style={{ color: '#566278', width: 120 }}>{label}:</dt>
+                <dd className="text-xs text-white">{value}</dd>
               </div>
             ))}
         </dl>
       </div>
+
+      {/* Hardware */}
+      {(server.hardwareName || server.hardwareVendor || server.cpuModel || server.iscsiIqn) && (
+        <div className="card">
+          <div className="card-title">Hardware</div>
+          <dl className="space-y-2.5 mt-2">
+            {([
+              ['Hardware Name', server.hardwareName],
+              ['Hardware Vendor', server.hardwareVendor],
+              ['CPU Model', server.cpuModel],
+              ['iSCSI Initiator', server.iscsiIqn],
+            ] as [string, string | undefined][])
+              .filter(([, v]) => v)
+              .map(([label, value]) => (
+                <div key={label} className="flex gap-2">
+                  <dt className="text-xs shrink-0" style={{ color: '#566278', width: 120 }}>{label}:</dt>
+                  <dd className="text-xs text-white break-all">{value}</dd>
+                </div>
+              ))}
+          </dl>
+        </div>
+      )}
 
       {/* Virtual Machines */}
       <div className="card">

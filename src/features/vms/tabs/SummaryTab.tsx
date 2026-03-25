@@ -186,6 +186,8 @@ export function SummaryTab({ instance, vmServer }: Props) {
           ['Host', hostName ?? '—'],
           ['Cloud', instance.cloud?.name ?? '—'],
           ['Group', instance.group?.name ?? '—'],
+          ['Cores', vmServer?.maxCores ? `${vmServer.maxCores} vCPU` : instance.maxCores ? `${instance.maxCores} vCPU` : '—'],
+          ['OS', vmServer?.serverOs?.name ?? ([vmServer?.platform, vmServer?.platformVersion].filter(Boolean).join(' ') || '—')],
           ['Plan', instance.plan?.name ?? '—'],
           ['Instance Type', instance.instanceType?.name ?? '—'],
         ]}
