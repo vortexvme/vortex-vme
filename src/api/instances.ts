@@ -5,7 +5,7 @@ import {
   InstancesResponse,
   SnapshotsResponse,
   ProcessesResponse,
-  InstanceStats,
+  ProcessEvent,
 } from '@/types/morpheus'
 
 export interface ListInstancesParams {
@@ -46,11 +46,9 @@ export async function getContainer(id: number): Promise<Container> {
   return c
 }
 
-export async function getInstanceStats(id: number): Promise<InstanceStats> {
-  const resp = await apiClient.get<InstanceStats>(
-    `/api/instances/${id}/stats`,
-  )
-  return resp.data
+export async function getProcess(id: number): Promise<ProcessEvent> {
+  const resp = await apiClient.get<{ process: ProcessEvent }>(`/api/processes/${id}`)
+  return resp.data.process
 }
 
 export async function getInstanceHistory(

@@ -334,14 +334,15 @@ export interface ProcessEvent {
   refId?: number
   processId?: number
   uniqueId?: string
-  processType?: {
-    code: string
-    name: string
-  }
+  processType?: { code: string; name: string }
   displayName?: string
+  containerName?: string
   description?: string
   status: string
   reason?: string
+  message?: string
+  output?: string
+  error?: string
   statusEta?: number
   percent?: number
   startDate?: string
@@ -349,7 +350,9 @@ export interface ProcessEvent {
   duration?: number
   dateCreated: string
   lastUpdated: string
-  createdBy?: { id: number; username: string; displayName?: string }
+  createdBy?: { username: string; displayName?: string }
+  updatedBy?: { username: string; displayName?: string }
+  events?: ProcessEvent[]
 }
 
 export interface ProcessesResponse {

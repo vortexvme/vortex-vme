@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart,
@@ -9,13 +9,21 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
-import { getInstanceStats } from '@/api/instances'
+import { getInstance } from '@/api/instances'
 import { PageLoader } from '@/components/common/LoadingSpinner'
 import { formatBytes } from '@/utils/format'
 import { format } from 'date-fns'
 
 interface Props {
   instanceId: number
+}
+
+interface DataPoint {
+  time: string
+  cpu: number
+  memPct: number
+  storPct: number
+  netKBs: number
 }
 
 function ChartCard({
@@ -43,9 +51,9 @@ function ChartCard({
           </span>
         )}
       </div>
-      {data.length === 0 ? (
+      {data.length < 2 ? (
         <div className="h-36 flex items-center justify-center text-xs" style={{ color: '#566278' }}>
-          No data available
+          Collecting data…
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={140}>
@@ -99,71 +107,37 @@ function ChartCard({
 }
 
 export function MonitorTab({ instanceId }: Props) {
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['instance-stats', instanceId],
-    queryFn: () => getInstanceStats(instanceId),
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+  const { data: instance, isLoading, dataUpdatedAt } = useQuery({
+    queryKey: ['instance', instanceId],
+    queryFn: () => getInstance(instanceId),
+    refetchInterval: 30_000,
+    staleTime: 20_000,
   })
 
-  // Memoize chart series so Math.random() fallback doesn't flicker on every render
-  const charts = useMemo(() => {
-    if (!stats) return null
-    const now = Date.now()
+  const [points, setPoints] = useState<DataPoint[]>([])
 
-    const makeSeries = (
-      pts: Array<{ time: string; value: number }> | undefined,
-      currentVal: number | undefined,
-    ) => {
-      if (pts && pts.length > 0) return pts
-      if (currentVal == null || currentVal === 0) return []
-      // Static synthetic baseline — no random, so no flicker
-      return Array.from({ length: 20 }, (_, i) => ({
-        time: new Date(now - (19 - i) * 90_000).toISOString(),
-        value: currentVal,
-      }))
-    }
+  useEffect(() => {
+    if (!instance?.stats) return
+    const stats = instance.stats
+    const maxMem = instance.maxMemory ?? stats.maxMemory ?? 0
+    const maxStor = instance.maxStorage ?? stats.maxStorage ?? 0
 
-    const memPct = stats.usedMemory && stats.maxMemory
-      ? (stats.usedMemory / stats.maxMemory) * 100
-      : undefined
-
-    const storPct = stats.usedStorage && stats.maxStorage
-      ? (stats.usedStorage / stats.maxStorage) * 100
-      : undefined
-
-    const cpuData = makeSeries(stats.statsData?.cpu, stats.cpuUsage)
-
-    const memData = makeSeries(
-      stats.statsData?.memory?.map((p) => ({
-        ...p,
-        value: stats.maxMemory ? (p.value / stats.maxMemory) * 100 : p.value,
-      })),
-      memPct,
-    )
-
-    const storData = makeSeries(
-      stats.statsData?.disk?.map((p) => ({
-        ...p,
-        value: stats.maxStorage ? (p.value / stats.maxStorage) * 100 : p.value,
-      })),
-      storPct,
-    )
-
-    const netData = makeSeries(
-      stats.statsData?.networkRx?.map((p, i) => ({
-        time: p.time,
-        value: p.value + (stats.statsData?.networkTx?.[i]?.value ?? 0),
-      })),
-      (stats.networkRxUsage ?? 0) + (stats.networkTxUsage ?? 0),
-    )
-
-    return { cpuData, memData, storData, netData, memPct, storPct }
-  }, [stats])
+    setPoints((prev) => [
+      ...prev.slice(-60),
+      {
+        time: stats.ts ?? new Date().toISOString(),
+        cpu: stats.cpuUsage ?? 0,
+        memPct: maxMem > 0 ? (stats.usedMemory / maxMem) * 100 : 0,
+        storPct: maxStor > 0 ? (stats.usedStorage / maxStor) * 100 : 0,
+        netKBs: (stats.networkRxUsage ?? 0) + (stats.networkTxUsage ?? 0),
+      },
+    ])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataUpdatedAt])
 
   if (isLoading) return <PageLoader />
 
-  if (!stats || !charts) {
+  if (!instance?.stats) {
     return (
       <div className="empty-state">
         <p className="text-sm" style={{ color: '#8B9AB0' }}>No monitoring data available</p>
@@ -171,7 +145,20 @@ export function MonitorTab({ instanceId }: Props) {
     )
   }
 
+  const stats = instance.stats
+  const maxMem = instance.maxMemory ?? stats.maxMemory ?? 0
+  const maxStor = instance.maxStorage ?? stats.maxStorage ?? 0
   const cpuPct = stats.cpuUsage ?? 0
+  const memPct = maxMem > 0 ? (stats.usedMemory / maxMem) * 100 : 0
+  const storPct = maxStor > 0 ? (stats.usedStorage / maxStor) * 100 : 0
+  const netKBs = (stats.networkRxUsage ?? 0) + (stats.networkTxUsage ?? 0)
+
+  const chartPoints = {
+    cpu: points.map((p) => ({ time: p.time, value: p.cpu })),
+    mem: points.map((p) => ({ time: p.time, value: p.memPct })),
+    stor: points.map((p) => ({ time: p.time, value: p.storPct })),
+    net: points.map((p) => ({ time: p.time, value: p.netKBs })),
+  }
 
   return (
     <div className="space-y-4 max-w-5xl">
@@ -179,9 +166,9 @@ export function MonitorTab({ instanceId }: Props) {
       <div className="grid grid-cols-4 gap-3">
         {[
           { label: 'CPU', value: `${cpuPct.toFixed(1)}%`, color: cpuPct > 80 ? '#EF4444' : '#00B388' },
-          { label: 'Memory Used', value: stats.usedMemory ? formatBytes(stats.usedMemory) : '—', color: (charts.memPct ?? 0) > 80 ? '#EF4444' : '#60A5FA' },
-          { label: 'Storage Used', value: stats.usedStorage ? formatBytes(stats.usedStorage) : '—', color: (charts.storPct ?? 0) > 80 ? '#EF4444' : '#A78BFA' },
-          { label: 'Network I/O', value: ((stats.networkRxUsage ?? 0) + (stats.networkTxUsage ?? 0)) > 0 ? `${((stats.networkRxUsage ?? 0) + (stats.networkTxUsage ?? 0)).toFixed(0)} KB/s` : '—', color: '#F59E0B' },
+          { label: 'Memory Used', value: stats.usedMemory ? formatBytes(stats.usedMemory) : '—', color: memPct > 80 ? '#EF4444' : '#60A5FA' },
+          { label: 'Storage Used', value: stats.usedStorage ? formatBytes(stats.usedStorage) : '—', color: storPct > 80 ? '#EF4444' : '#A78BFA' },
+          { label: 'Network I/O', value: netKBs > 0 ? `${netKBs.toFixed(0)} KB/s` : '—', color: '#F59E0B' },
         ].map(({ label, value, color }) => (
           <div key={label} className="card text-center py-3">
             <div className="text-xl font-bold" style={{ color }}>{value}</div>
@@ -190,27 +177,27 @@ export function MonitorTab({ instanceId }: Props) {
         ))}
       </div>
 
-      {/* 4 Charts — matching VME Manager: Memory, Storage, CPU, Network */}
+      {/* 4 Charts */}
       <div className="grid grid-cols-2 gap-4">
         <ChartCard
           title="Memory"
-          data={charts.memData}
+          data={chartPoints.mem}
           color="#60A5FA"
           yFormatter={(v) => `${v.toFixed(0)}%`}
           tooltipFormatter={(v) => `${v.toFixed(1)}%`}
-          currentLabel={stats.usedMemory && stats.maxMemory ? `${formatBytes(stats.usedMemory)} / ${formatBytes(stats.maxMemory)}` : undefined}
+          currentLabel={stats.usedMemory && maxMem ? `${formatBytes(stats.usedMemory)} / ${formatBytes(maxMem)}` : undefined}
         />
         <ChartCard
           title="Storage"
-          data={charts.storData}
+          data={chartPoints.stor}
           color="#A78BFA"
           yFormatter={(v) => `${v.toFixed(0)}%`}
           tooltipFormatter={(v) => `${v.toFixed(1)}%`}
-          currentLabel={stats.usedStorage && stats.maxStorage ? `${formatBytes(stats.usedStorage)} / ${formatBytes(stats.maxStorage)}` : undefined}
+          currentLabel={stats.usedStorage && maxStor ? `${formatBytes(stats.usedStorage)} / ${formatBytes(maxStor)}` : undefined}
         />
         <ChartCard
           title="CPU"
-          data={charts.cpuData}
+          data={chartPoints.cpu}
           color="#00B388"
           yFormatter={(v) => `${v.toFixed(0)}%`}
           tooltipFormatter={(v) => `${v.toFixed(1)}%`}
@@ -218,11 +205,11 @@ export function MonitorTab({ instanceId }: Props) {
         />
         <ChartCard
           title="Network"
-          data={charts.netData}
+          data={chartPoints.net}
           color="#F59E0B"
           yFormatter={(v) => `${v.toFixed(0)} KB/s`}
           tooltipFormatter={(v) => `${v.toFixed(1)} KB/s`}
-          currentLabel={((stats.networkRxUsage ?? 0) + (stats.networkTxUsage ?? 0)) > 0
+          currentLabel={netKBs > 0
             ? `↓${stats.networkRxUsage?.toFixed(0)} ↑${stats.networkTxUsage?.toFixed(0)} KB/s`
             : undefined}
         />

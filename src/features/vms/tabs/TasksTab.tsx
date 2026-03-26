@@ -85,7 +85,7 @@ export function TasksTab({ instanceId }: Props) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-medium text-white">
-                      {proc.displayName ?? proc.processType?.name ?? proc.description ?? 'Unknown'}
+                      {[proc.displayName, proc.processType?.name].filter(Boolean).join(' – ') || proc.description || 'Unknown'}
                     </span>
                     <span
                       className="text-2xs px-1.5 py-0.5 rounded"
