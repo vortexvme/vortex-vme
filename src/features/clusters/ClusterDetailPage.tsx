@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getCluster } from '@/api/clouds'
@@ -84,7 +85,12 @@ export function ClusterDetailPage() {
         {activeTab === 'summary' && <ClusterSummaryTab cluster={cluster} />}
         {activeTab === 'vms' && <ClusterVMsTab clusterId={clusterId} clusterZoneId={cluster.zone?.id} />}
         {activeTab === 'hosts' && <ClusterHostsTab clusterServerIds={(cluster.servers ?? []).map((s) => s.id)} />}
-        {activeTab === 'tasks' && cluster.zone?.id && <ClusterTasksTab zoneId={cluster.zone.id} />}
+        {activeTab === 'tasks' && cluster.zone?.id && (
+          <ClusterTasksTab
+            zoneId={cluster.zone.id}
+            clusterServerIds={(cluster.servers ?? []).map((s) => s.id)}
+          />
+        )}
       </div>
     </div>
   )
@@ -386,10 +392,12 @@ function formatDuration(ms: number | null) {
   return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`
 }
 
-function ClusterTasksTab({ zoneId }: { zoneId: number }) {
+function ClusterTasksTab({ zoneId, clusterServerIds }: { zoneId: number; clusterServerIds: number[] }) {
+  const [max, setMax] = useState(50)
+
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['zone-history', zoneId],
-    queryFn: () => getZoneHistory(zoneId),
+    queryKey: ['zone-history', zoneId, max],
+    queryFn: () => getZoneHistory(zoneId, { max }),
     staleTime: 0,
     refetchInterval: (query) => {
       const processes = query.state.data?.processes ?? []
@@ -401,7 +409,12 @@ function ClusterTasksTab({ zoneId }: { zoneId: number }) {
 
   if (isLoading) return <PageLoader />
 
-  const processes = data?.processes ?? []
+  // Only show server-level tasks (exclude VM/instance tasks)
+  const serverIdSet = new Set(clusterServerIds)
+  const processes = (data?.processes ?? []).filter(
+    (p) => !p.instanceId && (!p.serverId || serverIdSet.has(p.serverId)),
+  )
+  const total = data?.meta?.total ?? processes.length
 
   return (
     <div className="max-w-4xl space-y-3">
@@ -409,7 +422,7 @@ function ClusterTasksTab({ zoneId }: { zoneId: number }) {
         <div>
           <h3 className="text-sm font-semibold text-white">Tasks & Events</h3>
           <p className="text-xs mt-0.5" style={{ color: '#566278' }}>
-            {processes.length} event{processes.length !== 1 ? 's' : ''}
+            Showing {processes.length} of {total} total
           </p>
         </div>
         <button className="btn btn-ghost py-1 px-2" onClick={() => refetch()}>
@@ -424,61 +437,73 @@ function ClusterTasksTab({ zoneId }: { zoneId: number }) {
           <p className="text-sm" style={{ color: '#8B9AB0' }}>No task history</p>
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {processes.map((proc) => {
-            const startDate = proc.startDate ?? proc.dateCreated
-            const durationMs =
-              proc.duration ??
-              (proc.startDate && proc.endDate
-                ? new Date(proc.endDate).getTime() - new Date(proc.startDate).getTime()
-                : null)
+        <>
+          <div className="space-y-1.5">
+            {processes.map((proc) => {
+              const startDate = proc.startDate ?? proc.dateCreated
+              const durationMs =
+                proc.duration ??
+                (proc.startDate && proc.endDate
+                  ? new Date(proc.endDate).getTime() - new Date(proc.startDate).getTime()
+                  : null)
 
-            return (
-              <div
-                key={proc.id}
-                className="flex items-start gap-3 px-3 py-2.5 rounded-lg"
-                style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
-              >
-                <div className="mt-0.5 shrink-0">{statusIcon(proc.status)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium text-white">
-                      {[proc.displayName, proc.processType?.name].filter(Boolean).join(' – ') || proc.description || 'Unknown'}
-                    </span>
-                    <span
-                      className="text-2xs px-1.5 py-0.5 rounded"
-                      style={{
-                        background: `${statusColor(proc.status)}22`,
-                        color: statusColor(proc.status),
-                      }}
-                    >
-                      {proc.status}
-                      {proc.percent != null && proc.percent < 100 && ` (${proc.percent}%)`}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 mt-1 flex-wrap">
-                    {startDate && (
-                      <span className="text-2xs" style={{ color: '#566278' }}>
-                        Start: {new Date(startDate).toLocaleString()}
+              return (
+                <div
+                  key={proc.id}
+                  className="flex items-start gap-3 px-3 py-2.5 rounded-lg"
+                  style={{ background: '#0D1117', border: '1px solid #1E2A45' }}
+                >
+                  <div className="mt-0.5 shrink-0">{statusIcon(proc.status)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-medium text-white">
+                        {[proc.displayName, proc.processType?.name].filter(Boolean).join(' – ') || proc.description || 'Unknown'}
                       </span>
-                    )}
-                    <span className="text-2xs" style={{ color: '#566278' }}>
-                      Duration: {formatDuration(durationMs)}
-                    </span>
-                    {(proc.createdBy?.username ?? proc.createdBy?.displayName) && (
-                      <span className="text-2xs" style={{ color: '#566278' }}>
-                        User: {proc.createdBy?.displayName ?? proc.createdBy?.username}
+                      <span
+                        className="text-2xs px-1.5 py-0.5 rounded"
+                        style={{
+                          background: `${statusColor(proc.status)}22`,
+                          color: statusColor(proc.status),
+                        }}
+                      >
+                        {proc.status}
+                        {proc.percent != null && proc.percent < 100 && ` (${proc.percent}%)`}
                       </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                      {startDate && (
+                        <span className="text-2xs" style={{ color: '#566278' }}>
+                          Start: {new Date(startDate).toLocaleString()}
+                        </span>
+                      )}
+                      <span className="text-2xs" style={{ color: '#566278' }}>
+                        Duration: {formatDuration(durationMs)}
+                      </span>
+                      {(proc.createdBy?.username ?? proc.createdBy?.displayName) && (
+                        <span className="text-2xs" style={{ color: '#566278' }}>
+                          User: {proc.createdBy?.displayName ?? proc.createdBy?.username}
+                        </span>
+                      )}
+                    </div>
+                    {proc.reason && (
+                      <div className="text-2xs mt-0.5 truncate" style={{ color: '#3A4560' }}>{proc.reason}</div>
                     )}
                   </div>
-                  {proc.reason && (
-                    <div className="text-2xs mt-0.5 truncate" style={{ color: '#3A4560' }}>{proc.reason}</div>
-                  )}
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+
+          {processes.length < total && (
+            <button
+              className="btn btn-secondary w-full py-2"
+              onClick={() => setMax((m) => m + 50)}
+              disabled={isFetching}
+            >
+              {isFetching ? 'Loading…' : `Load more (${total - processes.length} remaining)`}
+            </button>
+          )}
+        </>
       )}
     </div>
   )

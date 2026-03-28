@@ -334,6 +334,9 @@ export interface ProcessEvent {
   refId?: number
   processId?: number
   uniqueId?: string
+  instanceId?: number
+  containerId?: number
+  serverId?: number
   processType?: { code: string; name: string }
   displayName?: string
   containerName?: string
