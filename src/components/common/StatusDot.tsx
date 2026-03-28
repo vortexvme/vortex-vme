@@ -15,8 +15,10 @@ const STATUS_LABELS: Record<string, string> = {
   warning: 'Warning',
   unknown: 'Unknown',
   provisioning: 'Provisioning',
+  provisioned: 'Provisioned',
   starting: 'Starting',
   stopping: 'Stopping',
+  maintenance: 'Maintenance',
 }
 
 export function StatusDot({ status, size = 8, showLabel = false }: Props) {
@@ -54,10 +56,12 @@ export function StatusBadge({ status }: { status: string }) {
 
   const colorMap: Record<string, { bg: string; text: string }> = {
     running:      { bg: 'rgba(0,179,136,0.15)',   text: '#00B388' },
+    provisioned:  { bg: 'rgba(0,179,136,0.15)',   text: '#00B388' },
     stopped:      { bg: 'rgba(107,114,128,0.15)',  text: '#9CA3AF' },
     suspended:    { bg: 'rgba(245,158,11,0.15)',   text: '#F59E0B' },
     failed:       { bg: 'rgba(239,68,68,0.15)',    text: '#EF4444' },
     warning:      { bg: 'rgba(245,158,11,0.15)',   text: '#F59E0B' },
+    maintenance:  { bg: 'rgba(245,158,11,0.15)',   text: '#F59E0B' },
     provisioning: { bg: 'rgba(59,130,246,0.15)',   text: '#60A5FA' },
     starting:     { bg: 'rgba(59,130,246,0.15)',   text: '#60A5FA' },
     stopping:     { bg: 'rgba(107,114,128,0.15)',  text: '#9CA3AF' },

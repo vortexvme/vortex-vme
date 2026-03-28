@@ -368,7 +368,7 @@ function ClusterHostsTab({ clusterServerIds }: { clusterServerIds: number[] }) {
                               ? <Loader2 size={12} className="animate-spin" style={{ color: isThisHost ? '#60A5FA' : undefined }} />
                               : <Wrench size={12} style={{ color: inMaint ? '#F59E0B' : '#566278' }} />
                             }
-                            {inMaint ? 'Active' : 'Enable'}
+                            {inMaint ? 'Disable' : 'Enable'}
                           </button>
                         )
                       })()}
