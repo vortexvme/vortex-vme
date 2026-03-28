@@ -28,6 +28,31 @@ export async function getServerHistory(
   return resp.data
 }
 
+export async function startServer(id: number) {
+  const resp = await apiClient.put(`/api/servers/${id}/start`)
+  return resp.data
+}
+
+export async function stopServer(id: number) {
+  const resp = await apiClient.put(`/api/servers/${id}/stop`)
+  return resp.data
+}
+
+export async function restartServer(id: number) {
+  const resp = await apiClient.put(`/api/servers/${id}/restart`)
+  return resp.data
+}
+
+export async function moveServer(serverId: number, targetHostId: number) {
+  const resp = await apiClient.put(`/api/servers/${serverId}/placement`, {
+    server: {
+      placementStrategy: 'pinned',
+      preferredParentServer: { id: targetHostId },
+    },
+  })
+  return resp.data
+}
+
 export async function getZoneHistory(
   zoneId: number,
   params: { max?: number } = {},
