@@ -9,6 +9,7 @@ import {
   StorageVolumesResponse,
   DataStore,
   DataStoresResponse,
+  ResourcePool,
 } from '@/types/morpheus'
 
 export async function listZones(params: { max?: number } = {}): Promise<ZonesResponse> {
@@ -87,6 +88,14 @@ export async function listDataStores(params: { max?: number } = {}): Promise<Dat
     params: { max: 100, ...params },
   })
   return resp.data.datastores ?? []
+}
+
+export async function listResourcePools(zoneId: number): Promise<ResourcePool[]> {
+  const resp = await apiClient.get<{ resourcePools: ResourcePool[] }>(
+    `/api/zones/${zoneId}/resource-pools`,
+    { params: { max: 200 } },
+  )
+  return resp.data.resourcePools ?? []
 }
 
 export async function listInstanceTypes() {

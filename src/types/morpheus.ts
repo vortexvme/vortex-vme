@@ -127,6 +127,15 @@ export interface ServerOs {
   platform?: string
 }
 
+export interface ResourcePool {
+  id: number
+  name: string
+  displayName?: string | null
+  externalId?: string
+  zone?: { id: number; name: string }
+  parent?: { id: number; name: string } | null
+}
+
 export interface ComputeServer {
   id: number
   name: string
@@ -177,6 +186,7 @@ export interface ComputeServer {
   enabled?: boolean
   placementStrategy?: string
   maintenanceMode?: boolean
+  resourcePoolId?: number | null
 }
 
 export interface ServerStats {

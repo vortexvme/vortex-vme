@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import {
   useReactTable,
   getCoreRowModel,
@@ -19,7 +19,8 @@ import {
   Filter,
 } from 'lucide-react'
 import { listInstances } from '@/api/instances'
-import { listClusters } from '@/api/clouds'
+import { listServers } from '@/api/servers'
+import { listResourcePools } from '@/api/clouds'
 import { StatusBadge } from '@/components/common/StatusDot'
 import { PageLoader } from '@/components/common/LoadingSpinner'
 import type { Instance } from '@/types/morpheus'
@@ -37,27 +38,58 @@ export function VMListPage() {
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['instances'],
-    queryFn: () => listInstances({ max: 50 }),
+    queryFn: () => listInstances({ max: 200 }),
     staleTime: 30_000,
   })
 
-  const { data: clustersData } = useQuery({
-    queryKey: ['clusters'],
-    queryFn: () => listClusters(),
-    staleTime: 60_000,
-    retry: 0,
+  // Fetch VM servers to get parentServer (host) and resourcePoolId
+  const { data: vmServersData } = useQuery({
+    queryKey: ['servers', 'vm-list'],
+    queryFn: () => listServers({ max: 500, vm: true }),
+    staleTime: 30_000,
   })
 
-  // Map from host server ID → cluster name
-  const serverToCluster = useMemo(() => {
+  // Map: serverId → { host, resourcePoolId, zoneId }
+  const serverInfoMap = useMemo(() => {
+    const map = new Map<number, { host: string; resourcePoolId: number | null; zoneId: number }>()
+    for (const srv of vmServersData?.servers ?? []) {
+      map.set(srv.id, {
+        host: srv.parentServer?.name ?? '',
+        resourcePoolId: srv.resourcePoolId ?? null,
+        zoneId: srv.zone?.id ?? srv.cloud?.id ?? 0,
+      })
+    }
+    return map
+  }, [vmServersData])
+
+  // Unique zone IDs from server records
+  const zoneIds = useMemo(() => {
+    const ids = new Set<number>()
+    for (const [, info] of serverInfoMap) {
+      if (info.zoneId) ids.add(info.zoneId)
+    }
+    return [...ids]
+  }, [serverInfoMap])
+
+  // Fetch resource pools per zone (parallel)
+  const resourcePoolQueries = useQueries({
+    queries: zoneIds.map((zoneId) => ({
+      queryKey: ['resource-pools', zoneId],
+      queryFn: () => listResourcePools(zoneId),
+      staleTime: 60_000,
+    })),
+  })
+
+  // Map: resourcePoolId → display name
+  const resourcePoolMap = useMemo(() => {
     const map = new Map<number, string>()
-    for (const cluster of clustersData?.clusters ?? []) {
-      for (const srv of cluster.servers ?? []) {
-        map.set(srv.id, cluster.name)
+    for (const q of resourcePoolQueries) {
+      for (const pool of q.data ?? []) {
+        map.set(pool.id, pool.displayName ?? pool.name)
       }
     }
     return map
-  }, [clustersData])
+  }, [resourcePoolQueries])
 
   const instances = data?.instances ?? []
 
@@ -67,18 +99,20 @@ export function VMListPage() {
     const q = localSearch.toLowerCase()
     if (q) {
       rows = rows.filter((i) => {
-        const hostName = i.containers?.[0]?.server?.name ?? ''
-        const clusterName = serverToCluster.get(i.containers?.[0]?.server?.id ?? -1) ?? ''
+        const serverId = i.containers?.[0]?.server?.id
+        const info = serverId != null ? serverInfoMap.get(serverId) : undefined
+        const host = info?.host ?? ''
+        const cluster = info?.resourcePoolId != null ? (resourcePoolMap.get(info.resourcePoolId) ?? '') : ''
         return (
           i.name.toLowerCase().includes(q) ||
           i.status.toLowerCase().includes(q) ||
-          hostName.toLowerCase().includes(q) ||
-          clusterName.toLowerCase().includes(q)
+          host.toLowerCase().includes(q) ||
+          cluster.toLowerCase().includes(q)
         )
       })
     }
     return rows
-  }, [instances, statusFilter, localSearch, serverToCluster])
+  }, [instances, statusFilter, localSearch, serverInfoMap, resourcePoolMap])
 
   const columns = useMemo(
     () => [
@@ -88,7 +122,10 @@ export function VMListPage() {
           <span
             className="font-medium hover:underline cursor-pointer"
             style={{ color: '#60A5FA' }}
-            onClick={() => navigate(`/vms/${info.row.original.id}`)}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/vms/${info.row.original.id}`)
+            }}
           >
             {info.getValue()}
           </span>
@@ -104,24 +141,22 @@ export function VMListPage() {
         id: 'host',
         header: 'Host',
         cell: ({ row }) => {
-          const hostName = row.original.containers?.[0]?.server?.name
-          return (
-            <span style={{ color: '#8B9AB0' }}>{hostName ?? '—'}</span>
-          )
+          const serverId = row.original.containers?.[0]?.server?.id
+          const host = serverId != null ? (serverInfoMap.get(serverId)?.host ?? '') : ''
+          return <span style={{ color: '#8B9AB0' }}>{host || '—'}</span>
         },
-        size: 160,
+        size: 180,
       }),
       col.display({
         id: 'cluster',
-        header: 'Cluster',
+        header: 'Resource Pool',
         cell: ({ row }) => {
           const serverId = row.original.containers?.[0]?.server?.id
-          const clusterName = serverId != null ? serverToCluster.get(serverId) : undefined
-          return (
-            <span style={{ color: '#8B9AB0' }}>{clusterName ?? '—'}</span>
-          )
+          const info = serverId != null ? serverInfoMap.get(serverId) : undefined
+          const cluster = info?.resourcePoolId != null ? (resourcePoolMap.get(info.resourcePoolId) ?? '') : ''
+          return <span style={{ color: '#8B9AB0' }}>{cluster || '—'}</span>
         },
-        size: 160,
+        size: 180,
       }),
       col.display({
         id: 'cpu',
@@ -174,7 +209,7 @@ export function VMListPage() {
         size: 170,
       }),
     ],
-    [navigate, serverToCluster],
+    [navigate, serverInfoMap, resourcePoolMap],
   )
 
   const table = useReactTable({
@@ -231,8 +266,8 @@ export function VMListPage() {
           <input
             type="text"
             className="input text-xs py-1 pl-7 pr-3 h-7"
-            style={{ width: 220 }}
-            placeholder="Filter by name, status, host, cluster…"
+            style={{ width: 240 }}
+            placeholder="Filter by name, status, host, resource pool…"
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
           />
