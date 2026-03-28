@@ -23,11 +23,28 @@ import { listServers } from '@/api/servers'
 import { listResourcePools } from '@/api/clouds'
 import { StatusBadge } from '@/components/common/StatusDot'
 import { PageLoader } from '@/components/common/LoadingSpinner'
-import type { Instance } from '@/types/morpheus'
+import type { Instance, ResourcePool } from '@/types/morpheus'
 import { formatBytes, formatPercent } from '@/utils/format'
 import { clsx } from 'clsx'
 
 const col = createColumnHelper<Instance>()
+
+/** Walk up the resource pool parent chain to find the top-level (cluster) pool name. */
+function resolveClusterName(
+  resourcePoolId: number | null | undefined,
+  poolMap: Map<number, ResourcePool>,
+): string {
+  if (resourcePoolId == null) return ''
+  let pool = poolMap.get(resourcePoolId)
+  if (!pool) return ''
+  // Walk up until we reach depth 0 / no parent
+  while (pool.parent != null) {
+    const parent = poolMap.get(pool.parent.id)
+    if (!parent) break
+    pool = parent
+  }
+  return pool.displayName ?? pool.name
+}
 
 export function VMListPage() {
   const navigate = useNavigate()
@@ -42,36 +59,24 @@ export function VMListPage() {
     staleTime: 30_000,
   })
 
-  // Fetch VM servers to get parentServer (host) and resourcePoolId
-  const { data: vmServersData } = useQuery({
-    queryKey: ['servers', 'vm-list'],
-    queryFn: () => listServers({ max: 500, vm: true }),
-    staleTime: 30_000,
+  const instances = data?.instances ?? []
+
+  // Unique zone IDs from instances (same approach as ClusterDetailPage)
+  const zoneIds = useMemo(
+    () => [...new Set(instances.map((i) => i.cloud?.id).filter((id): id is number => id != null))],
+    [instances],
+  )
+
+  // Fetch VM-level servers per zone — reuses ['vm-servers', zoneId] cache from ClusterDetailPage
+  const serverQueries = useQueries({
+    queries: zoneIds.map((zoneId) => ({
+      queryKey: ['vm-servers', zoneId],
+      queryFn: () => listServers({ max: 200, zoneId }),
+      staleTime: 30_000,
+    })),
   })
 
-  // Map: serverId → { host, resourcePoolId, zoneId }
-  const serverInfoMap = useMemo(() => {
-    const map = new Map<number, { host: string; resourcePoolId: number | null; zoneId: number }>()
-    for (const srv of vmServersData?.servers ?? []) {
-      map.set(srv.id, {
-        host: srv.parentServer?.name ?? '',
-        resourcePoolId: srv.resourcePoolId ?? null,
-        zoneId: srv.zone?.id ?? srv.cloud?.id ?? 0,
-      })
-    }
-    return map
-  }, [vmServersData])
-
-  // Unique zone IDs from server records
-  const zoneIds = useMemo(() => {
-    const ids = new Set<number>()
-    for (const [, info] of serverInfoMap) {
-      if (info.zoneId) ids.add(info.zoneId)
-    }
-    return [...ids]
-  }, [serverInfoMap])
-
-  // Fetch resource pools per zone (parallel)
+  // Fetch resource pools per zone
   const resourcePoolQueries = useQueries({
     queries: zoneIds.map((zoneId) => ({
       queryKey: ['resource-pools', zoneId],
@@ -80,18 +85,30 @@ export function VMListPage() {
     })),
   })
 
-  // Map: resourcePoolId → display name
-  const resourcePoolMap = useMemo(() => {
-    const map = new Map<number, string>()
+  // Map: serverId → { host, resourcePoolId }
+  const serverInfoMap = useMemo(() => {
+    const map = new Map<number, { host: string; resourcePoolId: number | null }>()
+    for (const q of serverQueries) {
+      for (const srv of q.data?.servers ?? []) {
+        map.set(srv.id, {
+          host: srv.parentServer?.name ?? '',
+          resourcePoolId: srv.resourcePoolId ?? null,
+        })
+      }
+    }
+    return map
+  }, [serverQueries])
+
+  // Map: resourcePoolId → ResourcePool (all zones merged)
+  const poolMap = useMemo(() => {
+    const map = new Map<number, ResourcePool>()
     for (const q of resourcePoolQueries) {
       for (const pool of q.data ?? []) {
-        map.set(pool.id, pool.displayName ?? pool.name)
+        map.set(pool.id, pool)
       }
     }
     return map
   }, [resourcePoolQueries])
-
-  const instances = data?.instances ?? []
 
   const filtered = useMemo(() => {
     let rows = instances
@@ -99,10 +116,10 @@ export function VMListPage() {
     const q = localSearch.toLowerCase()
     if (q) {
       rows = rows.filter((i) => {
-        const serverId = i.containers?.[0]?.server?.id
+        const serverId = i.servers?.[0]
         const info = serverId != null ? serverInfoMap.get(serverId) : undefined
         const host = info?.host ?? ''
-        const cluster = info?.resourcePoolId != null ? (resourcePoolMap.get(info.resourcePoolId) ?? '') : ''
+        const cluster = resolveClusterName(info?.resourcePoolId, poolMap)
         return (
           i.name.toLowerCase().includes(q) ||
           i.status.toLowerCase().includes(q) ||
@@ -112,7 +129,7 @@ export function VMListPage() {
       })
     }
     return rows
-  }, [instances, statusFilter, localSearch, serverInfoMap, resourcePoolMap])
+  }, [instances, statusFilter, localSearch, serverInfoMap, poolMap])
 
   const columns = useMemo(
     () => [
@@ -141,7 +158,7 @@ export function VMListPage() {
         id: 'host',
         header: 'Host',
         cell: ({ row }) => {
-          const serverId = row.original.containers?.[0]?.server?.id
+          const serverId = row.original.servers?.[0]
           const host = serverId != null ? (serverInfoMap.get(serverId)?.host ?? '') : ''
           return <span style={{ color: '#8B9AB0' }}>{host || '—'}</span>
         },
@@ -151,9 +168,9 @@ export function VMListPage() {
         id: 'cluster',
         header: 'Resource Pool',
         cell: ({ row }) => {
-          const serverId = row.original.containers?.[0]?.server?.id
+          const serverId = row.original.servers?.[0]
           const info = serverId != null ? serverInfoMap.get(serverId) : undefined
-          const cluster = info?.resourcePoolId != null ? (resourcePoolMap.get(info.resourcePoolId) ?? '') : ''
+          const cluster = resolveClusterName(info?.resourcePoolId, poolMap)
           return <span style={{ color: '#8B9AB0' }}>{cluster || '—'}</span>
         },
         size: 180,
@@ -209,7 +226,7 @@ export function VMListPage() {
         size: 170,
       }),
     ],
-    [navigate, serverInfoMap, resourcePoolMap],
+    [navigate, serverInfoMap, poolMap],
   )
 
   const table = useReactTable({

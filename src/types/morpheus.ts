@@ -132,6 +132,7 @@ export interface ResourcePool {
   name: string
   displayName?: string | null
   externalId?: string
+  depth?: number
   zone?: { id: number; name: string }
   parent?: { id: number; name: string } | null
 }
