@@ -75,6 +75,7 @@ export function HostsPage() {
                 <th>Memory</th>
                 <th>VMs</th>
                 <th>OS</th>
+                <th>Agent Version</th>
               </tr>
             </thead>
             <tbody>
@@ -143,6 +144,9 @@ export function HostsPage() {
                     </td>
                     <td style={{ color: '#566278' }}>
                       {server.osMorpheusType ?? server.osType ?? '—'}
+                    </td>
+                    <td style={{ color: '#566278' }}>
+                      {server.agentVersion ?? '—'}
                     </td>
                   </tr>
                 )

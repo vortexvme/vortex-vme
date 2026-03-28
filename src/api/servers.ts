@@ -27,3 +27,14 @@ export async function getServerHistory(
   )
   return resp.data
 }
+
+export async function getZoneHistory(
+  zoneId: number,
+  params: { max?: number } = {},
+): Promise<ProcessesResponse> {
+  const resp = await apiClient.get<ProcessesResponse>(
+    `/api/processes`,
+    { params: { zoneId, max: 50, ...params } },
+  )
+  return resp.data
+}
