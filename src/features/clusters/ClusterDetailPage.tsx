@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCluster } from '@/api/clouds'
-import { listInstances } from '@/api/instances'
+import { listInstances, deleteInstance } from '@/api/instances'
 import { listServers, getZoneHistory, startServer, stopServer, restartServer, moveServer, setServerPlacementStrategy, enableMaintenanceMode, leaveMaintenanceMode } from '@/api/servers'
 import { PageLoader } from '@/components/common/LoadingSpinner'
 import { StatusBadge } from '@/components/common/StatusDot'
-import { ArrowLeft, Layers, Server, Monitor, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle, Play, Square, RotateCcw, MoveRight, Loader2, CheckCircle2, Wrench, Tag } from 'lucide-react'
+import { ArrowLeft, Layers, Server, Monitor, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle, Play, Square, RotateCcw, MoveRight, Loader2, CheckCircle2, Wrench, Tag, ChevronDown, Trash2 } from 'lucide-react'
 import { formatBytes, formatPercent } from '@/utils/format'
 import { clsx } from 'clsx'
 
@@ -360,6 +360,10 @@ function ClusterVMsTab({
   const [strategyOpen, setStrategyOpen] = useState(false)
   const [newStrategy, setNewStrategy] = useState<'auto' | 'failover' | 'pinned'>('auto')
 
+  // Actions dropdown + delete confirm
+  const [actionsOpen, setActionsOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
   // ── Instance list ──────────────────────────────────────────────────────────
   const { data: instData, isLoading: instLoading, isFetching, refetch } = useQuery({
     queryKey: ['instances'],
@@ -499,11 +503,25 @@ function ClusterVMsTab({
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: async (instanceIds: number[]) => {
+      return Promise.all(instanceIds.map((id) => deleteInstance(id)))
+    },
+    onSuccess: () => {
+      setConfirmDelete(false)
+      setSelected(new Set())
+      queryClient.invalidateQueries({ queryKey: ['instances'] })
+    },
+  })
+
   const selectedServerIds = [...selected]
     .map((instId) => vmServerIdMap.get(instId))
     .filter((id): id is number => id != null)
 
   const anyPinned = selectedServerIds.some((sid) => placementStrategyMap.get(sid) === 'pinned')
+
+  const canDelete = selected.size > 0 &&
+    [...selected].every((instId) => vms.find((v) => v.id === instId)?.status?.toLowerCase() === 'stopped')
 
   const toggleSelect = (id: number) =>
     setSelected((prev) => {
@@ -601,15 +619,45 @@ function ClusterVMsTab({
                 Move ({selected.size})
                 {anyPinned && <span className="text-2xs ml-1" style={{ color: '#EF4444' }}>pinned</span>}
               </button>
-              <button
-                className="btn btn-secondary py-1.5 px-3"
-                onClick={() => { setNewStrategy('auto'); setStrategyOpen(true) }}
-                disabled={strategyMutation.isPending}
-                title="Change placement strategy for selected VMs"
-              >
-                <Tag size={13} />
-                Strategy
-              </button>
+              <div className="relative">
+                <button
+                  className="btn btn-secondary py-1.5 px-3"
+                  onClick={() => setActionsOpen((v) => !v)}
+                  disabled={strategyMutation.isPending || deleteMutation.isPending}
+                >
+                  Actions
+                  <ChevronDown size={12} />
+                </button>
+                {actionsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setActionsOpen(false)} />
+                    <div
+                      className="absolute left-0 top-full mt-1 z-50 rounded-lg py-1"
+                      style={{ background: '#141C2E', border: '1px solid #1E2A45', minWidth: 210 }}
+                    >
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-white/5"
+                        onClick={() => { setActionsOpen(false); setNewStrategy('auto'); setStrategyOpen(true) }}
+                      >
+                        <Tag size={13} style={{ color: '#60A5FA' }} />
+                        Set Placement Strategy
+                      </button>
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                        disabled={!canDelete}
+                        title={!canDelete ? 'Only stopped VMs can be deleted' : undefined}
+                        onClick={() => { if (canDelete) { setActionsOpen(false); setConfirmDelete(true) } }}
+                      >
+                        <Trash2 size={13} style={{ color: canDelete ? '#EF4444' : '#566278' }} />
+                        <span style={{ color: canDelete ? '#EF4444' : '#566278' }}>Delete</span>
+                        {!canDelete && (
+                          <span className="ml-auto text-2xs" style={{ color: '#566278' }}>stopped only</span>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               <div className="w-px h-4 mx-0.5" style={{ background: '#1E2A45' }} />
               <button
                 className="btn btn-secondary py-1.5 px-2"
@@ -662,7 +710,7 @@ function ClusterVMsTab({
                 <th>Name</th>
                 <th>Status</th>
                 <th>Host</th>
-                <th>Strategy</th>
+                <th>Placement Strategy</th>
                 <th>IP Address</th>
                 <th>Plan</th>
                 <th style={{ width: 80 }}>Actions</th>
@@ -833,6 +881,59 @@ function ClusterVMsTab({
         </div>
       )}
 
+      {/* ── Delete Confirm Modal ── */}
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => !deleteMutation.isPending && setConfirmDelete(false)}
+        >
+          <div
+            className="rounded-xl p-6 space-y-5"
+            style={{ background: '#141C2E', border: '1px solid #1E2A45', width: 420 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                <Trash2 size={15} style={{ color: '#EF4444' }} />
+                Delete Virtual Machine{selected.size !== 1 ? 's' : ''}
+              </h2>
+              <p className="text-xs mt-1" style={{ color: '#566278' }}>
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="space-y-1 max-h-40 overflow-auto">
+              {vms.filter((v) => selected.has(v.id)).map((v) => (
+                <div key={v.id} className="flex items-center gap-2 px-2 py-1.5 rounded" style={{ background: '#0D1117' }}>
+                  <Trash2 size={12} style={{ color: '#EF4444' }} />
+                  <span className="text-xs text-white flex-1">{v.name}</span>
+                  <span className="text-2xs" style={{ color: '#566278' }}>{v.status}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-danger"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate([...selected])}
+              >
+                {deleteMutation.isPending
+                  ? <><Loader2 size={13} className="animate-spin" /> Deleting…</>
+                  : <><Trash2 size={13} /> Delete {selected.size} VM{selected.size !== 1 ? 's' : ''}</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Move Modal ── */}
       {moveOpen && (
         <div
@@ -882,7 +983,7 @@ function ClusterVMsTab({
                 disabled={moveMutation.isPending}
               >
                 <option value="">Select a host…</option>
-                {clusterHosts.map((h) => (
+                {[...clusterHosts].sort((a, b) => a.name.localeCompare(b.name)).map((h) => (
                   <option key={h.id} value={h.id}>{h.name}</option>
                 ))}
               </select>
