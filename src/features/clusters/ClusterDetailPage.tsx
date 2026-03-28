@@ -578,6 +578,9 @@ function ClusterVMsTab({
   const moveOpsRef = useRef(moveOps)
   moveOpsRef.current = moveOps
 
+  // instanceId → startedAt for tracked power operations
+  const [powerOps, setPowerOps] = useState<Map<number, number>>(new Map())
+
   // Strategy modal
   const [strategyOpen, setStrategyOpen] = useState(false)
   const [newStrategy, setNewStrategy] = useState<'auto' | 'failover' | 'pinned'>('auto')
@@ -587,11 +590,12 @@ function ClusterVMsTab({
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   // ── Instance list ──────────────────────────────────────────────────────────
+  const busy = moveOps.length > 0 || powerOps.size > 0
   const { data: instData, isLoading: instLoading, isFetching, refetch } = useQuery({
     queryKey: ['instances'],
     queryFn: () => listInstances({ max: 100 }),
-    staleTime: moveOps.length > 0 ? 0 : 30_000,
-    refetchInterval: moveOps.length > 0 ? 4_000 : false,
+    staleTime: busy ? 0 : 30_000,
+    refetchInterval: busy ? 3_000 : false,
   })
 
   // ── VM-level servers in zone (for host mapping) ────────────────────────────
@@ -656,14 +660,41 @@ function ClusterVMsTab({
     if (s.placementStrategy) placementStrategyMap.set(s.id, s.placementStrategy)
   }
 
+  // serverId → instanceId (reverse of vmServerIdMap)
+  const serverToInstanceMap = new Map<number, number>()
+  for (const [instId, srvId] of vmServerIdMap.entries()) {
+    serverToInstanceMap.set(srvId, instId)
+  }
+
+  // ── Power ops completion detection ────────────────────────────────────────
+  const POWER_TRANSITIONING = new Set(['stopping', 'starting', 'restarting', 'queued', 'in-progress', 'pending'])
+  useEffect(() => {
+    if (powerOps.size === 0) return
+    let changed = false
+    const next = new Map(powerOps)
+    for (const [instId, startedAt] of powerOps) {
+      const inst = (instData?.instances ?? []).find((v) => v.id === instId)
+      if (!inst) { next.delete(instId); changed = true; continue }
+      const elapsed = Date.now() - startedAt
+      if (elapsed > 120_000) { next.delete(instId); changed = true; continue }
+      // Grace period: don't mark done for first 4s (lets Morpheus register the op)
+      if (elapsed > 4_000 && !POWER_TRANSITIONING.has(inst.status.toLowerCase())) {
+        next.delete(instId); changed = true
+      }
+    }
+    if (changed) setPowerOps(next)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instData])
+
   // ── Mutations ──────────────────────────────────────────────────────────────
   const powerMutation = useMutation({
-    mutationFn: ({ serverId, action }: { serverId: number; action: 'start' | 'stop' | 'restart' }) => {
+    mutationFn: ({ serverId, action }: { serverId: number; instanceId: number; action: 'start' | 'stop' | 'restart' }) => {
       if (action === 'start') return startServer(serverId)
       if (action === 'stop') return stopServer(serverId)
       return restartServer(serverId)
     },
-    onSuccess: () => {
+    onSuccess: (_data, { instanceId }) => {
+      setPowerOps((prev) => new Map([...prev, [instanceId, Date.now()]]))
       queryClient.invalidateQueries({ queryKey: ['instances'] })
     },
   })
@@ -818,7 +849,7 @@ function ClusterVMsTab({
                 title={anyPinned ? 'Cannot move pinned VMs — change strategy first' : 'Move selected VMs to another host'}
               >
                 <MoveRight size={13} />
-                Move ({selected.size})
+                Move Compute ({selected.size})
                 {anyPinned && <span className="text-2xs ml-1" style={{ color: '#EF4444' }}>pinned</span>}
               </button>
               <div className="relative">
@@ -863,21 +894,30 @@ function ClusterVMsTab({
               <div className="w-px h-4 mx-0.5" style={{ background: '#1E2A45' }} />
               <button
                 className="btn btn-secondary py-1.5 px-2"
-                onClick={() => selectedServerIds.forEach((sid) => powerMutation.mutate({ serverId: sid, action: 'start' }))}
+                onClick={() => selectedServerIds.forEach((sid) => {
+                  const instId = serverToInstanceMap.get(sid)
+                  if (instId) powerMutation.mutate({ serverId: sid, instanceId: instId, action: 'start' })
+                })}
                 title="Power On selected"
               >
                 <Play size={12} style={{ color: '#00B388' }} />
               </button>
               <button
                 className="btn btn-secondary py-1.5 px-2"
-                onClick={() => selectedServerIds.forEach((sid) => powerMutation.mutate({ serverId: sid, action: 'stop' }))}
+                onClick={() => selectedServerIds.forEach((sid) => {
+                  const instId = serverToInstanceMap.get(sid)
+                  if (instId) powerMutation.mutate({ serverId: sid, instanceId: instId, action: 'stop' })
+                })}
                 title="Power Off selected"
               >
                 <Square size={12} />
               </button>
               <button
                 className="btn btn-secondary py-1.5 px-2"
-                onClick={() => selectedServerIds.forEach((sid) => powerMutation.mutate({ serverId: sid, action: 'restart' }))}
+                onClick={() => selectedServerIds.forEach((sid) => {
+                  const instId = serverToInstanceMap.get(sid)
+                  if (instId) powerMutation.mutate({ serverId: sid, instanceId: instId, action: 'restart' })
+                })}
                 title="Restart selected"
               >
                 <RotateCcw size={12} />
@@ -926,9 +966,12 @@ function ClusterVMsTab({
                 const strategy = sid ? (placementStrategyMap.get(sid) ?? null) : null
                 const isPinned = strategy === 'pinned'
                 const isMoving = moveOps.some((m) => m.instanceId === inst.id)
+                const isPowerOp = powerOps.has(inst.id)
+                const isBusy = isMoving || isPowerOp
+                const instStatus = inst.status.toLowerCase()
 
                 return (
-                  <tr key={inst.id} className={clsx(isMoving && 'opacity-50')}>
+                  <tr key={inst.id} className={clsx(isBusy && 'opacity-60')}>
                     <td onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
@@ -942,7 +985,7 @@ function ClusterVMsTab({
                       onClick={() => navigate(`/vms/${inst.id}`)}
                     >
                       <div className="flex items-center gap-2">
-                        {isMoving
+                        {isBusy
                           ? <Loader2 size={12} className="animate-spin" style={{ color: '#60A5FA' }} />
                           : <Monitor size={12} style={{ color: '#00B388' }} />
                         }
@@ -980,24 +1023,24 @@ function ClusterVMsTab({
                         <button
                           className="btn btn-ghost p-1"
                           title="Power On"
-                          disabled={!sid || powerMutation.isPending || isMoving}
-                          onClick={() => sid && powerMutation.mutate({ serverId: sid, action: 'start' })}
+                          disabled={!sid || isBusy || instStatus === 'running'}
+                          onClick={() => sid && powerMutation.mutate({ serverId: sid, instanceId: inst.id, action: 'start' })}
                         >
-                          <Play size={11} style={{ color: '#00B388' }} />
+                          <Play size={11} style={{ color: instStatus === 'running' ? '#566278' : '#00B388' }} />
                         </button>
                         <button
                           className="btn btn-ghost p-1"
                           title="Power Off"
-                          disabled={!sid || powerMutation.isPending || isMoving}
-                          onClick={() => sid && powerMutation.mutate({ serverId: sid, action: 'stop' })}
+                          disabled={!sid || isBusy || instStatus === 'stopped'}
+                          onClick={() => sid && powerMutation.mutate({ serverId: sid, instanceId: inst.id, action: 'stop' })}
                         >
                           <Square size={11} style={{ color: '#8B9AB0' }} />
                         </button>
                         <button
                           className="btn btn-ghost p-1"
                           title="Restart"
-                          disabled={!sid || powerMutation.isPending || isMoving}
-                          onClick={() => sid && powerMutation.mutate({ serverId: sid, action: 'restart' })}
+                          disabled={!sid || isBusy || instStatus === 'stopped'}
+                          onClick={() => sid && powerMutation.mutate({ serverId: sid, instanceId: inst.id, action: 'restart' })}
                         >
                           <RotateCcw size={11} style={{ color: '#8B9AB0' }} />
                         </button>

@@ -1,7 +1,10 @@
+import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatBytes, formatPercent } from '@/utils/format'
 import { StatusBadge } from '@/components/common/StatusDot'
 import type { Instance, ComputeServer } from '@/types/morpheus'
-import { Server, Cpu, Network, Tag } from 'lucide-react'
+import { Server, Cpu, Network, Tag, Pencil, X, Check, Loader2, FileText } from 'lucide-react'
+import { updateInstance } from '@/api/instances'
 
 interface Props {
   instance: Instance
@@ -66,6 +69,92 @@ function ResourceGauge({
           style={{ width: `${pct}%`, background: color }}
         />
       </div>
+    </div>
+  )
+}
+
+function DescriptionCard({ instance }: { instance: Instance }) {
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(instance.description ?? '')
+
+  const mutation = useMutation({
+    mutationFn: (description: string) => updateInstance(instance.id, { description }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instance', instance.id] })
+      setEditing(false)
+    },
+  })
+
+  const startEdit = () => {
+    setDraft(instance.description ?? '')
+    setEditing(true)
+  }
+
+  const cancel = () => {
+    setEditing(false)
+    setDraft(instance.description ?? '')
+  }
+
+  return (
+    <div className="card">
+      <div className="card-title flex items-center justify-between">
+        <span className="flex items-center gap-1.5">
+          <FileText size={12} style={{ color: '#00B388' }} />
+          Description
+        </span>
+        {!editing && (
+          <button
+            className="btn btn-ghost py-0.5 px-1.5 text-xs"
+            onClick={startEdit}
+            title="Edit description"
+          >
+            <Pencil size={11} />
+            Edit
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="space-y-2 mt-1">
+          <textarea
+            className="input resize-none w-full"
+            rows={4}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            disabled={mutation.isPending}
+            placeholder="Enter a description…"
+            autoFocus
+          />
+          <div className="flex items-center gap-1.5 justify-end">
+            <button
+              className="btn btn-ghost py-1 px-2 text-xs"
+              onClick={cancel}
+              disabled={mutation.isPending}
+            >
+              <X size={11} />
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary py-1 px-2 text-xs"
+              onClick={() => mutation.mutate(draft)}
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending
+                ? <><Loader2 size={11} className="animate-spin" /> Saving…</>
+                : <><Check size={11} /> Save</>
+              }
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p
+          className="text-xs mt-1 whitespace-pre-wrap"
+          style={{ color: instance.description ? '#D4D9E3' : '#566278' }}
+        >
+          {instance.description || 'No description set.'}
+        </p>
+      )}
     </div>
   )
 }
@@ -193,26 +282,8 @@ export function SummaryTab({ instance, vmServer }: Props) {
         ]}
       />
 
-      {/* Dates & Owner */}
-      <InfoCard
-        title="Ownership & Dates"
-        rows={[
-          ['Created By', instance.createdBy?.username ?? '—'],
-          ['Owner', instance.owner?.username ?? '—'],
-          [
-            'Date Created',
-            instance.dateCreated
-              ? new Date(instance.dateCreated).toLocaleString()
-              : '—',
-          ],
-          [
-            'Last Updated',
-            instance.lastUpdated
-              ? new Date(instance.lastUpdated).toLocaleString()
-              : '—',
-          ],
-        ]}
-      />
+      {/* Description */}
+      <DescriptionCard instance={instance} />
 
       {/* Network */}
       <div className="card">

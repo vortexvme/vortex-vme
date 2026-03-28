@@ -148,6 +148,13 @@ export async function createInstance(payload: CreateInstancePayload) {
   return resp.data
 }
 
+export async function updateInstance(id: number, payload: { description?: string }) {
+  const resp = await apiClient.put<{ instance: Instance }>(`/api/instances/${id}`, {
+    instance: payload,
+  })
+  return resp.data.instance
+}
+
 export async function deleteInstance(id: number, force = false) {
   const resp = await apiClient.delete(`/api/instances/${id}`, {
     params: { force },
