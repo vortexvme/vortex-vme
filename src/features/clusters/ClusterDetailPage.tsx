@@ -475,9 +475,12 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
                       </div>
                     )}
                     {pinned.length > 0 && (
-                      <div>
-                        <p className="text-2xs font-medium mb-1" style={{ color: '#F59E0B' }}>
-                          Pinned — will NOT be automatically migrated ({pinned.length}):
+                      <div className="rounded-lg p-3 space-y-2" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                        <p className="text-xs font-medium" style={{ color: '#EF4444' }}>
+                          Cannot enable maintenance mode — {pinned.length} pinned VM{pinned.length !== 1 ? 's' : ''} must be moved first
+                        </p>
+                        <p className="text-2xs" style={{ color: '#8B9AB0' }}>
+                          Pinned virtual machines are locked to this host and will not be automatically migrated. Move or change the placement strategy of the following VMs before enabling maintenance mode:
                         </p>
                         <div className="space-y-1 max-h-24 overflow-auto">
                           {pinned.map((s) => (
@@ -526,7 +529,7 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
                 <button
                   className="btn btn-primary"
                   style={{ background: 'rgba(245,158,11,0.2)', borderColor: 'rgba(245,158,11,0.4)', color: '#F59E0B' }}
-                  disabled={maintenanceMutation.isPending}
+                  disabled={maintenanceMutation.isPending || (isEnable && pinned.length > 0)}
                   onClick={() => {
                     maintenanceMutation.mutate(
                       { id: confirmMaint.hostId, enable: isEnable },
