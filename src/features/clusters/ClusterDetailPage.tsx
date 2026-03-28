@@ -167,29 +167,53 @@ function ClusterSummaryTab({ cluster }: { cluster: Awaited<ReturnType<typeof get
   )
 }
 
+interface MaintOp {
+  hostId: number
+  hostName: string
+  action: 'enable' | 'leave'
+  startedAt: number
+}
+
 function ClusterHostsTab({ clusterServerIds }: { clusterServerIds: number[] }) {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const [pendingMaint, setPendingMaint] = useState<Set<number>>(new Set())
+  const [maintOp, setMaintOp] = useState<MaintOp | null>(null)
+  const [maintJustDone, setMaintJustDone] = useState(false)
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['servers', 'hypervisors'],
     queryFn: () => listServers({ max: 100, vmHypervisor: true }),
-    staleTime: 30_000,
+    staleTime: maintOp ? 0 : 30_000,
+    refetchInterval: maintOp ? 3_000 : false,
   })
 
   const maintenanceMutation = useMutation({
     mutationFn: ({ id, enable }: { id: number; enable: boolean }) =>
       enable ? enableMaintenanceMode(id) : leaveMaintenanceMode(id),
-    onMutate: ({ id }) => {
-      setPendingMaint((prev) => new Set([...prev, id]))
-    },
-    onSettled: (_data, _err, { id }) => {
-      setPendingMaint((prev) => { const next = new Set(prev); next.delete(id); return next })
-      queryClient.invalidateQueries({ queryKey: ['servers', 'hypervisors'] })
-      refetch()
+    onSuccess: (_data, { id, enable }) => {
+      const host = (data?.servers ?? []).find((s) => s.id === id)
+      setMaintOp({
+        hostId: id,
+        hostName: host?.name ?? String(id),
+        action: enable ? 'enable' : 'leave',
+        startedAt: Date.now(),
+      })
     },
   })
+
+  // ── Detect maintenance completion ──────────────────────────────────────────
+  useEffect(() => {
+    if (!maintOp) return
+    const server = (data?.servers ?? []).find((s) => s.id === maintOp.hostId)
+    if (!server) return
+    const inMaint = !!(server.maintenanceMode || server.status === 'maintenance')
+    const isDone = maintOp.action === 'enable' ? inMaint : !inMaint
+    const timedOut = Date.now() - maintOp.startedAt > 60_000
+    if (isDone || timedOut) {
+      setMaintOp(null)
+      setMaintJustDone(true)
+      setTimeout(() => setMaintJustDone(false), 2_500)
+    }
+  }, [data, maintOp])
 
   const hosts = (data?.servers ?? [])
     .filter((s) => clusterServerIds.includes(s.id))
@@ -199,6 +223,37 @@ function ClusterHostsTab({ clusterServerIds }: { clusterServerIds: number[] }) {
 
   return (
     <div className="max-w-5xl space-y-3">
+      {/* ── Maintenance progress banner ── */}
+      {maintOp && (
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-lg"
+          style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.3)' }}
+        >
+          <Loader2 size={16} className="animate-spin shrink-0" style={{ color: '#60A5FA' }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium" style={{ color: '#60A5FA' }}>
+              {maintOp.action === 'enable'
+                ? `Enabling maintenance mode on ${maintOp.hostName}…`
+                : `Leaving maintenance mode on ${maintOp.hostName}…`}
+            </p>
+            <p className="text-2xs mt-0.5" style={{ color: '#566278' }}>
+              Monitoring task progress…
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Done flash ── */}
+      {maintJustDone && !maintOp && (
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-lg"
+          style={{ background: 'rgba(0,179,136,0.1)', border: '1px solid rgba(0,179,136,0.3)' }}
+        >
+          <CheckCircle2 size={16} style={{ color: '#00B388' }} />
+          <p className="text-xs font-medium" style={{ color: '#00B388' }}>Operation completed</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-white">Hosts</h3>
@@ -298,18 +353,19 @@ function ClusterHostsTab({ clusterServerIds }: { clusterServerIds: number[] }) {
                     <td style={{ color: '#566278' }}>{server.agentVersion ?? '—'}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       {(() => {
-                        const inMaint = server.maintenanceMode || server.status === 'maintenance'
-                        const pending = pendingMaint.has(server.id)
+                        const inMaint = !!(server.maintenanceMode || server.status === 'maintenance')
+                        const isThisHost = maintOp?.hostId === server.id
+                        const busy = isThisHost || maintenanceMutation.isPending
                         return (
                           <button
                             className={clsx('btn py-1 px-2 text-xs', inMaint ? 'btn-secondary' : 'btn-ghost')}
                             style={inMaint ? { color: '#F59E0B', borderColor: 'rgba(245,158,11,0.3)' } : {}}
-                            disabled={pending}
+                            disabled={busy || !!maintOp}
                             onClick={() => maintenanceMutation.mutate({ id: server.id, enable: !inMaint })}
                             title={inMaint ? 'Leave maintenance mode' : 'Enter maintenance mode'}
                           >
-                            {pending
-                              ? <Loader2 size={12} className="animate-spin" />
+                            {busy
+                              ? <Loader2 size={12} className="animate-spin" style={{ color: isThisHost ? '#60A5FA' : undefined }} />
                               : <Wrench size={12} style={{ color: inMaint ? '#F59E0B' : '#566278' }} />
                             }
                             {inMaint ? 'Active' : 'Enable'}
