@@ -354,7 +354,6 @@ function ClusterVMsTab({
   const [justDone, setJustDone] = useState(false)
   const moveOpsRef = useRef(moveOps)
   moveOpsRef.current = moveOps
-  const hasSeenRunningRef = useRef(false)
 
   // Strategy modal
   const [strategyOpen, setStrategyOpen] = useState(false)
@@ -391,40 +390,20 @@ function ClusterVMsTab({
   })
 
   // ── Detect move completion ─────────────────────────────────────────────────
+  // Primary signal: every VM's parentServer.name now matches its target host.
+  // vmServersData re-polls every 4s while moveOps is non-empty, so this is
+  // checked on each fresh poll. Hard timeout at 2 min as safety net.
   useEffect(() => {
-    if (moveOps.length === 0) {
-      hasSeenRunningRef.current = false
-      return
-    }
+    if (moveOps.length === 0) return
 
-    // Primary: host-map check — VM's parentServer updated to the target host
     const allMoved = moveOps.every((op) => {
       const srv = (vmServersData?.servers ?? []).find((s) => s.id === op.serverId)
       return srv?.parentServer?.name === op.targetHostName
     })
 
-    // Secondary: process-based detection (zone processes)
-    const movingServerIds = new Set(moveOps.map((m) => m.serverId))
-    const running = (zoneProcesses?.processes ?? []).filter(
-      (p) =>
-        (p.status === 'running' || p.status === 'in-progress') &&
-        p.serverId != null &&
-        movingServerIds.has(p.serverId),
-    )
-    if (running.length > 0) hasSeenRunningRef.current = true
-    const processDone = zoneProcesses !== undefined && running.length === 0
-
     const timedOut = moveOps.every((m) => Date.now() - m.startedAt > 120_000)
-    // Grace period fallback: after 20s assume done if no running processes found
-    const gracePassed = moveOps.every((m) => Date.now() - m.startedAt > 20_000)
 
-    if (
-      allMoved ||
-      (hasSeenRunningRef.current && processDone) ||
-      (gracePassed && processDone) ||
-      timedOut
-    ) {
-      hasSeenRunningRef.current = false
+    if (allMoved || timedOut) {
       setMoveOps([])
       setJustDone(true)
       setTimeout(() => setJustDone(false), 3_000)
@@ -432,7 +411,7 @@ function ClusterVMsTab({
       refetchVmServers()
       queryClient.removeQueries({ queryKey: ['zone-processes-move', clusterZoneId] })
     }
-  }, [zoneProcesses, vmServersData, moveOps, clusterZoneId, queryClient, refetch, refetchVmServers])
+  }, [vmServersData, moveOps, clusterZoneId, queryClient, refetch, refetchVmServers])
 
   // ── Build host-name map: vmServerId → parentServer.name ───────────────────
   const hostMap = new Map<number, string>()
