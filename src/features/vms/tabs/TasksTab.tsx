@@ -37,8 +37,12 @@ export function TasksTab({ instanceId }: Props) {
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['instance-history', instanceId],
     queryFn: () => getInstanceHistory(instanceId),
-    staleTime: 20_000,
-    refetchInterval: 30_000,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const processes = query.state.data?.processes ?? []
+      const hasRunning = processes.some((p) => p.status === 'running' || p.status === 'in-progress')
+      return hasRunning ? 3_000 : 10_000
+    },
   })
 
   if (isLoading) return <PageLoader />

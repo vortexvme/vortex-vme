@@ -9,7 +9,6 @@ import { clsx } from 'clsx'
 
 const TABS = [
   { id: 'summary', label: 'Summary' },
-  { id: 'monitor', label: 'Monitor' },
   { id: 'tasks', label: 'Tasks & Events' },
 ] as const
 
@@ -93,9 +92,6 @@ export function HostDetailPage() {
       <div className="flex-1 overflow-auto p-4">
         {activeTab === 'summary' && (
           <HostSummaryTab server={server} cpuPct={cpuPct} memUsed={memUsed} memMax={memMax} memPct={memPct} totalCount={totalCount} />
-        )}
-        {activeTab === 'monitor' && (
-          <HostMonitorTab server={server} cpuPct={cpuPct} memUsed={memUsed} memMax={memMax} memPct={memPct} />
         )}
         {activeTab === 'tasks' && <HostTasksTab hostId={hostId} />}
       </div>
@@ -252,47 +248,6 @@ function HostSummaryTab({
   )
 }
 
-function HostMonitorTab({
-  server,
-  cpuPct,
-  memUsed,
-  memMax,
-  memPct,
-}: {
-  server: Awaited<ReturnType<typeof getServer>>
-  cpuPct: number
-  memUsed: number
-  memMax: number
-  memPct: number
-}) {
-  const storUsed = server.usedStorage ?? 0
-  const storMax = server.maxStorage ?? 0
-  const storPct = storMax > 0 ? (storUsed / storMax) * 100 : 0
-
-  return (
-    <div className="grid grid-cols-3 gap-4 max-w-5xl">
-      {[
-        { label: 'CPU Usage', value: formatPercent(cpuPct), sub: `${server.maxCores} vCPU`, pct: cpuPct },
-        { label: 'Memory', value: `${formatBytes(memUsed)} / ${formatBytes(memMax)}`, sub: formatPercent(memPct), pct: memPct },
-        { label: 'Storage', value: storMax > 0 ? `${formatBytes(storUsed)} / ${formatBytes(storMax)}` : '—', sub: storMax > 0 ? formatPercent(storPct) : '', pct: storPct },
-      ].map(({ label, value, sub, pct }) => (
-        <div key={label} className="card">
-          <div className="card-title">{label}</div>
-          <div className="mt-3">
-            <div className="text-xl font-bold text-white">{value}</div>
-            <div className="text-xs mt-1" style={{ color: '#566278' }}>{sub}</div>
-          </div>
-          <div className="progress-bar mt-3">
-            <div
-              className={clsx('progress-fill', pct > 80 ? 'red' : pct > 60 ? 'yellow' : 'green')}
-              style={{ width: `${Math.min(pct, 100)}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 function statusColor(status: string) {
   const s = status.toLowerCase()
@@ -314,8 +269,12 @@ function HostTasksTab({ hostId }: { hostId: number }) {
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['server-history', hostId],
     queryFn: () => getServerHistory(hostId),
-    staleTime: 20_000,
-    refetchInterval: 30_000,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const processes = query.state.data?.processes ?? []
+      const hasRunning = processes.some((p) => p.status === 'running' || p.status === 'in-progress')
+      return hasRunning ? 3_000 : 10_000
+    },
     retry: 0,
   })
 
