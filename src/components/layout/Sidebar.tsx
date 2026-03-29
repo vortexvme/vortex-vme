@@ -195,10 +195,10 @@ export function Sidebar() {
   const allHypervisors = hypervisorsData?.servers ?? []
   const clusters = byName(clustersData?.clusters ?? [])
 
-  // Map: hostServerId → status (for status dots in cluster host list)
+  // Map: hostServerId → effective status (maintenance overrides the regular status)
   const hostStatusMap = useMemo(() => {
     const map = new Map<number, string>()
-    for (const h of allHypervisors) map.set(h.id, h.status)
+    for (const h of allHypervisors) map.set(h.id, h.maintenanceMode ? 'maintenance' : h.status)
     return map
   }, [allHypervisors])
 
