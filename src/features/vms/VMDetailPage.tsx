@@ -5,13 +5,12 @@ import {
   Play,
   Square,
   RotateCcw,
-  PauseCircle,
   Terminal,
   Camera,
   RefreshCw,
   ExternalLink,
 } from 'lucide-react'
-import { getInstance, startInstance, stopInstance, restartInstance, suspendInstance } from '@/api/instances'
+import { getInstance, startInstance, stopInstance, restartInstance } from '@/api/instances'
 import { consoleUrl } from '@/utils/vmeManagerUrl'
 import { getServer } from '@/api/servers'
 import { StatusBadge } from '@/components/common/StatusDot'
@@ -62,7 +61,6 @@ export function VMDetailPage() {
         start: startInstance,
         stop: stopInstance,
         restart: restartInstance,
-        suspend: suspendInstance,
       }
       return fns[action](instanceId)
     },
@@ -71,7 +69,6 @@ export function VMDetailPage() {
         start: 'Power On',
         stop: 'Power Off',
         restart: 'Restart',
-        suspend: 'Suspend',
       }
       toast.success(`${labels[action]} initiated`)
       queryClient.invalidateQueries({ queryKey: ['instance', instanceId] })
@@ -121,76 +118,91 @@ export function VMDetailPage() {
           {isFetching && (
             <RefreshCw size={12} className="animate-spin" style={{ color: '#566278' }} />
           )}
-        </div>
 
-        {/* Power Controls */}
-        <div className="flex items-center gap-1">
-          <button
-            className="btn btn-secondary py-1.5 px-3"
-            disabled={isRunning || isMutating}
-            onClick={() => mutation.mutate('start')}
-            title="Power On"
-          >
-            <Play size={13} style={{ color: '#00B388' }} />
-            Power On
-          </button>
-          <button
-            className="btn btn-secondary py-1.5 px-3"
-            disabled={isStopped || isMutating}
-            onClick={() => mutation.mutate('stop')}
-            title="Power Off"
-          >
-            <Square size={13} />
-            Power Off
-          </button>
-          <button
-            className="btn btn-secondary py-1.5 px-2"
-            disabled={isStopped || isMutating}
-            onClick={() => mutation.mutate('restart')}
-            title="Restart"
-          >
-            <RotateCcw size={13} />
-          </button>
-          <button
-            className="btn btn-secondary py-1.5 px-2"
-            disabled={isStopped || isMutating}
-            onClick={() => mutation.mutate('suspend')}
-            title="Suspend"
-          >
-            <PauseCircle size={13} />
-          </button>
-
-          <div className="w-px h-5 mx-1" style={{ background: '#1E2A45' }} />
-
-          <button
-            className="btn btn-secondary py-1.5 px-2"
-            onClick={() => setTab('snapshots')}
-            title="Snapshots"
-          >
-            <Camera size={13} />
-          </button>
-
-          <button
-            className="btn btn-secondary py-1.5 px-2"
-            disabled={!vmServer}
-            onClick={() => {
-              if (!vmServer) return
-              window.open(consoleUrl(vmServer.id), '_blank', 'width=1024,height=768,noopener')
+          {/* vCenter-style icon toolbar */}
+          <div
+            className="flex items-center"
+            style={{
+              border: '1px solid #1E2A45',
+              borderRadius: 6,
+              overflow: 'hidden',
+              marginLeft: 8,
             }}
-            title="Open Console"
           >
-            <Terminal size={13} />
-            <ExternalLink size={10} style={{ marginLeft: -2 }} />
-          </button>
-
-          <button
-            className="btn btn-ghost py-1.5 px-2"
-            onClick={() => refetch()}
-            title="Refresh"
-          >
-            <RefreshCw size={13} />
-          </button>
+            {[
+              {
+                icon: <Play size={13} style={{ color: isRunning || isMutating ? '#3A4560' : '#00B388' }} />,
+                title: 'Power On',
+                disabled: isRunning || isMutating,
+                onClick: () => mutation.mutate('start'),
+              },
+              {
+                icon: <Square size={13} style={{ color: isStopped || isMutating ? '#3A4560' : '#8B9AB0' }} />,
+                title: 'Power Off',
+                disabled: isStopped || isMutating,
+                onClick: () => mutation.mutate('stop'),
+              },
+              {
+                icon: <RotateCcw size={13} style={{ color: isStopped || isMutating ? '#3A4560' : '#8B9AB0' }} />,
+                title: 'Restart',
+                disabled: isStopped || isMutating,
+                onClick: () => mutation.mutate('restart'),
+              },
+              null, // divider
+              {
+                icon: <Camera size={13} style={{ color: '#8B9AB0' }} />,
+                title: 'Take Snapshot',
+                disabled: false,
+                onClick: () => setTab('snapshots'),
+              },
+              {
+                icon: (
+                  <span className="flex items-center gap-0.5">
+                    <Terminal size={13} style={{ color: vmServer ? '#8B9AB0' : '#3A4560' }} />
+                    <ExternalLink size={9} style={{ color: vmServer ? '#566278' : '#3A4560' }} />
+                  </span>
+                ),
+                title: 'Open Console',
+                disabled: !vmServer,
+                onClick: () => vmServer && window.open(consoleUrl(vmServer.id), '_blank', 'width=1024,height=768,noopener'),
+              },
+            ].map((btn, i) =>
+              btn === null ? (
+                <div key={i} style={{ width: 1, alignSelf: 'stretch', background: '#1E2A45' }} />
+              ) : (
+                <button
+                  key={i}
+                  title={btn.title}
+                  disabled={btn.disabled}
+                  onClick={btn.onClick}
+                  style={{
+                    padding: '5px 8px',
+                    background: 'transparent',
+                    cursor: btn.disabled ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!btn.disabled) (e.currentTarget as HTMLButtonElement).style.background = '#1E2A45'
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                  }}
+                >
+                  {btn.icon}
+                </button>
+              )
+            )}
+          </div>
         </div>
+
+        <button
+          className="btn btn-ghost py-1.5 px-2"
+          onClick={() => refetch()}
+          title="Refresh"
+        >
+          <RefreshCw size={13} />
+        </button>
       </div>
 
       {/* Tabs */}
