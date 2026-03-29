@@ -117,41 +117,6 @@ function HostSummaryTab({
 }) {
   return (
     <div className="grid grid-cols-3 gap-4 max-w-5xl">
-      {/* Identity */}
-      <div className="col-span-3">
-        <div
-          className="flex items-center gap-4 p-4 rounded-lg"
-          style={{ background: '#141C2E', border: '1px solid #1E2A45' }}
-        >
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.25)' }}
-          >
-            <Server size={22} style={{ color: '#60A5FA' }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-white truncate">{server.name}</h2>
-            <div className="flex items-center gap-3 mt-1 flex-wrap">
-              <StatusBadge status={server.status} />
-              <span className="text-xs" style={{ color: '#566278' }}>{server.cloud?.name}</span>
-              {(server.internalIp ?? server.externalIp) && (
-                <span
-                  className="text-xs font-mono px-1.5 py-0.5 rounded"
-                  style={{ background: '#1E2A45', color: '#8B9AB0' }}
-                >
-                  {server.internalIp ?? server.externalIp}
-                </span>
-              )}
-            </div>
-          </div>
-          {server.plan && (
-            <div className="text-xs px-2.5 py-1 rounded shrink-0" style={{ background: '#1E2A45', color: '#8B9AB0' }}>
-              {server.plan.name}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Resources */}
       <div className="card">
         <div className="card-title">Resources</div>

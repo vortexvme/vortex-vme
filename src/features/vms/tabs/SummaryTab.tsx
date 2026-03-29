@@ -182,54 +182,6 @@ export function SummaryTab({ instance, vmServer }: Props) {
 
   return (
     <div className="grid grid-cols-3 gap-4 max-w-5xl">
-      {/* VM Identity */}
-      <div className="col-span-3">
-        <div
-          className="flex items-center gap-4 p-4 rounded-lg"
-          style={{ background: '#141C2E', border: '1px solid #1E2A45' }}
-        >
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-            style={{
-              background: 'rgba(0,179,136,0.12)',
-              border: '1px solid rgba(0,179,136,0.25)',
-            }}
-          >
-            <Server size={22} style={{ color: '#00B388' }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-white truncate">
-              {instance.name}
-            </h2>
-            <div className="flex items-center gap-3 mt-1 flex-wrap">
-              <StatusBadge status={instance.status} />
-              <span className="text-xs" style={{ color: '#566278' }}>
-                {instance.cloud?.name}
-              </span>
-              {ip && (
-                <span
-                  className="text-xs font-mono px-1.5 py-0.5 rounded"
-                  style={{
-                    background: '#1E2A45',
-                    color: '#8B9AB0',
-                  }}
-                >
-                  {ip}
-                </span>
-              )}
-            </div>
-          </div>
-          {instance.plan && (
-            <div
-              className="text-xs px-2.5 py-1 rounded shrink-0"
-              style={{ background: '#1E2A45', color: '#8B9AB0' }}
-            >
-              {instance.plan.name}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Resources */}
       {stats && (
         <div className="card">

@@ -68,33 +68,6 @@ export function StorageDetailPage() {
       {/* Summary content */}
       <div className="flex-1 overflow-auto p-4">
         <div className="grid grid-cols-3 gap-4 max-w-5xl">
-          {/* Identity */}
-          <div className="col-span-3">
-            <div
-              className="flex items-center gap-4 p-4 rounded-lg"
-              style={{ background: '#141C2E', border: '1px solid #1E2A45' }}
-            >
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)' }}
-              >
-                <HardDrive size={22} style={{ color: '#F59E0B' }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-semibold text-white truncate">{ds.name}</h2>
-                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                  <span className="text-xs" style={{ color: '#566278' }}>{ds.zone?.name}</span>
-                  <span
-                    className="text-xs px-1.5 py-0.5 rounded"
-                    style={{ background: '#1E2A45', color: '#8B9AB0' }}
-                  >
-                    {typeLabel}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Capacity */}
           {storMax > 0 && (
             <div className="card col-span-2">
