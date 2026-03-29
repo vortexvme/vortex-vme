@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatBytes, formatPercent } from '@/utils/format'
-import { StatusBadge } from '@/components/common/StatusDot'
 import type { Instance, ComputeServer } from '@/types/morpheus'
-import { Server, Cpu, Network, Tag, Pencil, X, Check, Loader2, FileText } from 'lucide-react'
+import { Cpu, Network, Tag, Pencil, X, Check, Loader2, FileText } from 'lucide-react'
 import { updateServer } from '@/api/servers'
 
 interface Props {

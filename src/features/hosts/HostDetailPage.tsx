@@ -5,7 +5,7 @@ import { getServer, getServerHistory } from '@/api/servers'
 import { PageLoader } from '@/components/common/LoadingSpinner'
 import { StatusBadge } from '@/components/common/StatusDot'
 import { formatBytes, formatPercent } from '@/utils/format'
-import { ArrowLeft, Server, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
+import { ArrowLeft, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const TABS = [
