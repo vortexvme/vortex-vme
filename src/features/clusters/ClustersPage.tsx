@@ -66,7 +66,7 @@ export function ClustersPage() {
                 <th>Name</th>
                 <th>Cloud</th>
                 <th>Status</th>
-                <th>Workers</th>
+                <th>Hosts</th>
                 <th>CPU</th>
                 <th>Memory</th>
               </tr>

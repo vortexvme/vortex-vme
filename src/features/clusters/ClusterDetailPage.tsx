@@ -159,7 +159,7 @@ function ClusterSummaryTab({ cluster }: { cluster: Awaited<ReturnType<typeof get
             ['Cloud', cluster.zone?.name],
             ['Type', cluster.type?.name],
             ['Layout', cluster.layout?.name],
-            ['Workers', String(cluster.workersCount ?? cluster.servers?.length ?? 0)],
+            ['Hosts', String(cluster.workersCount ?? cluster.servers?.length ?? 0)],
             ['Created', cluster.dateCreated ? new Date(cluster.dateCreated).toLocaleString() : undefined],
           ] as [string, string | undefined][]).filter(([, v]) => v).map(([label, value]) => (
             <div key={label} className="flex gap-2">

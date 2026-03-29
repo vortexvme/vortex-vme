@@ -45,26 +45,39 @@ function Section({
 }) {
   return (
     <div>
-      <button
+      <div
         className={clsx('tree-node w-full text-left', active && 'selected')}
-        style={{ paddingLeft: 8 + indent * 16 }}
-        onClick={() => { onToggle(); onLabelClick?.() }}
+        style={{ paddingLeft: 8 + indent * 16, cursor: 'default' }}
       >
-        {expanded
-          ? <ChevronDown size={11} className="shrink-0" style={{ color: '#566278' }} />
-          : <ChevronRight size={11} className="shrink-0" style={{ color: '#566278' }} />
-        }
-        <Icon size={12} className="shrink-0" />
-        <span className="truncate flex-1 text-xs">{label}</span>
-        {count !== undefined && (
-          <span
-            className="text-2xs px-1 rounded shrink-0"
-            style={{ background: '#1E2A45', color: '#566278' }}
-          >
-            {count}
-          </span>
-        )}
-      </button>
+        {/* Chevron toggles expand/collapse only */}
+        <span
+          className="shrink-0 flex items-center justify-center"
+          style={{ cursor: 'pointer', padding: '0 2px' }}
+          onClick={onToggle}
+        >
+          {expanded
+            ? <ChevronDown size={11} style={{ color: '#566278' }} />
+            : <ChevronRight size={11} style={{ color: '#566278' }} />
+          }
+        </span>
+        {/* Label navigates only */}
+        <button
+          className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+          onClick={onLabelClick}
+        >
+          <Icon size={12} className="shrink-0" />
+          <span className="truncate flex-1 text-xs">{label}</span>
+          {count !== undefined && (
+            <span
+              className="text-2xs px-1 rounded shrink-0"
+              style={{ background: '#1E2A45', color: '#566278' }}
+            >
+              {count}
+            </span>
+          )}
+        </button>
+      </div>
       {expanded && children}
     </div>
   )
