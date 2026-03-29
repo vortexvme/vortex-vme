@@ -7,7 +7,6 @@ import { listClusters, listNetworks, listDataStores } from '@/api/clouds'
 import {
   ChevronRight,
   ChevronDown,
-  Monitor,
   Server,
   Layers,
   Network,
