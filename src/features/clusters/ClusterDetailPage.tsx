@@ -693,9 +693,16 @@ function ClusterVMsTab({
       if (action === 'stop') return stopServer(serverId)
       return restartServer(serverId)
     },
-    onSuccess: (_data, { instanceId }) => {
+    onMutate: ({ instanceId }) => {
+      // Show spinner immediately on click, before the API responds
       setPowerOps((prev) => new Map([...prev, [instanceId, Date.now()]]))
+    },
+    onSuccess: (_data, _vars) => {
       queryClient.invalidateQueries({ queryKey: ['instances'] })
+    },
+    onError: (_err, { instanceId }) => {
+      // Remove spinner if the API call itself failed
+      setPowerOps((prev) => { const next = new Map(prev); next.delete(instanceId); return next })
     },
   })
 
