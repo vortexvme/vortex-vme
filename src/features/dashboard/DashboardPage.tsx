@@ -109,7 +109,6 @@ export function DashboardPage() {
           sub={`${running} running`}
           icon={Monitor}
           color="#00B388"
-          onClick={() => navigate('/vms')}
         />
         <StatCard
           title="Hosts"
@@ -117,7 +116,6 @@ export function DashboardPage() {
           sub={`Hypervisors`}
           icon={Server}
           color="#60A5FA"
-          onClick={() => navigate('/hosts')}
         />
         <StatCard
           title="Clusters"
@@ -125,7 +123,6 @@ export function DashboardPage() {
           sub="Morpheus clusters"
           icon={Layers}
           color="#A78BFA"
-          onClick={() => navigate('/clusters')}
         />
         <StatCard
           title="Avg CPU Usage"

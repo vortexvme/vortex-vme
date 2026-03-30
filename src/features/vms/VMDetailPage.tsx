@@ -175,26 +175,26 @@ export function VMDetailPage() {
           >
             {[
               {
-                icon: <Play size={13} style={{ color: isRunning || isMutating ? '#3A4560' : '#00B388' }} />,
+                icon: <Play size={16} style={{ color: isRunning || isMutating ? '#3A4560' : '#00B388' }} />,
                 title: 'Power On',
                 disabled: isRunning || isMutating,
                 onClick: () => mutation.mutate('start'),
               },
               {
-                icon: <Square size={13} style={{ color: isStopped || isMutating ? '#3A4560' : '#8B9AB0' }} />,
+                icon: <Square size={16} style={{ color: isStopped || isMutating ? '#3A4560' : '#8B9AB0' }} />,
                 title: 'Power Off',
                 disabled: isStopped || isMutating,
                 onClick: () => mutation.mutate('stop'),
               },
               {
-                icon: <RotateCcw size={13} style={{ color: isStopped || isMutating ? '#3A4560' : '#8B9AB0' }} />,
+                icon: <RotateCcw size={16} style={{ color: isStopped || isMutating ? '#3A4560' : '#8B9AB0' }} />,
                 title: 'Restart',
                 disabled: isStopped || isMutating,
                 onClick: () => mutation.mutate('restart'),
               },
               null, // divider
               {
-                icon: <Camera size={13} style={{ color: '#8B9AB0' }} />,
+                icon: <Camera size={16} style={{ color: '#8B9AB0' }} />,
                 title: 'Take Snapshot',
                 disabled: false,
                 onClick: () => setTab('snapshots'),
@@ -202,8 +202,8 @@ export function VMDetailPage() {
               {
                 icon: (
                   <span className="flex items-center gap-0.5">
-                    <Terminal size={13} style={{ color: vmServer ? '#8B9AB0' : '#3A4560' }} />
-                    <ExternalLink size={9} style={{ color: vmServer ? '#566278' : '#3A4560' }} />
+                    <Terminal size={16} style={{ color: vmServer ? '#8B9AB0' : '#3A4560' }} />
+                    <ExternalLink size={10} style={{ color: vmServer ? '#566278' : '#3A4560' }} />
                   </span>
                 ),
                 title: 'Open Console',
@@ -220,7 +220,7 @@ export function VMDetailPage() {
                   disabled={btn.disabled}
                   onClick={btn.onClick}
                   style={{
-                    padding: '5px 8px',
+                    padding: '7px 10px',
                     background: 'transparent',
                     cursor: btn.disabled ? 'not-allowed' : 'pointer',
                     display: 'flex',
