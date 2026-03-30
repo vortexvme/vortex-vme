@@ -119,10 +119,9 @@ export function HostDetailPage() {
           <h1 className="text-base font-semibold text-white truncate">{server.name}</h1>
           <StatusBadge status={server.status} />
           {(isFetching || maintOp) && <Loader2 size={12} className="animate-spin" style={{ color: '#566278' }} />}
-        </div>
 
-        {/* Actions dropdown */}
-        <div className="relative" onClick={e => e.stopPropagation()}>
+          {/* Actions dropdown */}
+          <div className="relative" onClick={e => e.stopPropagation()}>
           <button
             className="btn btn-secondary py-1.5 px-3"
             onClick={() => setActionsOpen(o => !o)}
@@ -148,6 +147,7 @@ export function HostDetailPage() {
               </button>
             </div>
           )}
+          </div>
         </div>
 
         <button className="btn btn-ghost py-1.5 px-2" onClick={() => refetch()}>

@@ -238,18 +238,18 @@ export function VMDetailPage() {
               )
             )}
           </div>
-        </div>
 
-        {/* Move Compute button */}
-        <button
-          className="btn btn-secondary py-1.5 px-3"
-          title="Move to another host"
-          disabled={!!moveOp || !vmServer}
-          onClick={() => setMoveOpen(true)}
-        >
-          <MoveRight size={13} />
-          Move
-        </button>
+          {/* Move Compute button */}
+          <button
+            className="btn btn-secondary py-1.5 px-3"
+            title="Move to another host"
+            disabled={!!moveOp || !vmServer}
+            onClick={() => setMoveOpen(true)}
+          >
+            <MoveRight size={13} />
+            Move
+          </button>
+        </div>
 
         <button
           className="btn btn-ghost py-1.5 px-2"
