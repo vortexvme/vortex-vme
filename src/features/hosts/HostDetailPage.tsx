@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { getServer, getServerHistory } from '@/api/servers'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getServer, getServerHistory, listServers, enableMaintenanceMode, leaveMaintenanceMode } from '@/api/servers'
 import { PageLoader } from '@/components/common/LoadingSpinner'
 import { StatusBadge } from '@/components/common/StatusDot'
 import { formatBytes, formatPercent } from '@/utils/format'
-import { ArrowLeft, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
+import {
+  ArrowLeft, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle,
+  Wrench, ChevronDown, Loader2, CheckCircle2, Monitor,
+} from 'lucide-react'
 import { clsx } from 'clsx'
 
 const TABS = [
@@ -27,19 +30,59 @@ function statusIcon(status: string) {
 export function HostDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const hostId = Number(id)
   const activeTab = (searchParams.get('tab') as TabId) ?? 'summary'
   const setTab = (tab: TabId) => setSearchParams({ tab }, { replace: true })
 
+  const [actionsOpen, setActionsOpen] = useState(false)
+  const [confirmMaint, setConfirmMaint] = useState<'enable' | 'disable' | null>(null)
+  const [maintOp, setMaintOp] = useState<{ action: 'enable' | 'leave'; startedAt: number } | null>(null)
+  const [maintJustDone, setMaintJustDone] = useState(false)
+
   const { data: server, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['server', hostId],
     queryFn: () => getServer(hostId),
     enabled: !!hostId,
-    staleTime: 30_000,
+    staleTime: maintOp ? 0 : 30_000,
+    refetchInterval: maintOp ? 3_000 : false,
   })
 
-  // server.containers[] is an array of container IDs on this host
+  // VM-level servers in the same zone — needed for maintenance modal
+  const { data: vmServersData } = useQuery({
+    queryKey: ['vm-servers', server?.zone?.id],
+    queryFn: () => listServers({ max: 200, zoneId: server!.zone!.id }),
+    enabled: !!server?.zone?.id && confirmMaint === 'enable',
+    staleTime: 60_000,
+  })
+
+  const maintenanceMutation = useMutation({
+    mutationFn: ({ enable }: { enable: boolean }) =>
+      enable ? enableMaintenanceMode(hostId) : leaveMaintenanceMode(hostId),
+    onSuccess: (_data, { enable }) => {
+      setConfirmMaint(null)
+      setMaintOp({ action: enable ? 'enable' : 'leave', startedAt: Date.now() })
+      queryClient.invalidateQueries({ queryKey: ['servers', 'hypervisors'] })
+    },
+  })
+
+  // Detect maintenance completion
+  useEffect(() => {
+    if (!maintOp || !server) return
+    const finallyInMaint = !!(server.maintenanceMode || server.status === 'maintenance')
+    const transitioning = server.status === 'maintenancing'
+    const fullyLeft = !finallyInMaint && !transitioning
+    const isDone = maintOp.action === 'enable' ? finallyInMaint : fullyLeft
+    const timedOut = Date.now() - maintOp.startedAt > 60_000
+    if (isDone || timedOut) {
+      setMaintOp(null)
+      setMaintJustDone(true)
+      setTimeout(() => setMaintJustDone(false), 2_500)
+      queryClient.invalidateQueries({ queryKey: ['servers', 'hypervisors'] })
+    }
+  }, [server, maintOp, queryClient])
+
   const totalCount = server?.containers?.length ?? 0
 
   if (isLoading) return <PageLoader />
@@ -55,9 +98,15 @@ export function HostDetailPage() {
   const memUsed = server.stats?.usedMemory ?? server.usedMemory ?? 0
   const memMax = server.stats?.maxMemory ?? server.maxMemory ?? 0
   const memPct = memMax > 0 ? (memUsed / memMax) * 100 : 0
+  const inMaintenance = !!(server.maintenanceMode || server.status === 'maintenance' || server.status === 'maintenancing')
+
+  // VMs on this host (for maintenance modal)
+  const vmsOnHost = (vmServersData?.servers ?? []).filter(s => s.parentServer?.id === hostId)
+  const willMigrate = vmsOnHost.filter(s => s.placementStrategy !== 'pinned')
+  const pinned = vmsOnHost.filter(s => s.placementStrategy === 'pinned')
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" onClick={() => actionsOpen && setActionsOpen(false)}>
       {/* Header */}
       <div
         className="flex items-center gap-3 px-4 py-3"
@@ -69,12 +118,58 @@ export function HostDetailPage() {
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <h1 className="text-base font-semibold text-white truncate">{server.name}</h1>
           <StatusBadge status={server.status} />
-          {isFetching && <RefreshCw size={12} className="animate-spin" style={{ color: '#566278' }} />}
+          {(isFetching || maintOp) && <Loader2 size={12} className="animate-spin" style={{ color: '#566278' }} />}
         </div>
+
+        {/* Actions dropdown */}
+        <div className="relative" onClick={e => e.stopPropagation()}>
+          <button
+            className="btn btn-secondary py-1.5 px-3"
+            onClick={() => setActionsOpen(o => !o)}
+            disabled={!!maintOp}
+          >
+            Actions
+            <ChevronDown size={13} className={clsx('transition-transform', actionsOpen && 'rotate-180')} />
+          </button>
+          {actionsOpen && (
+            <div
+              className="absolute right-0 mt-1 rounded-lg py-1 z-20"
+              style={{ background: '#141C2E', border: '1px solid #1E2A45', minWidth: 200, top: '100%' }}
+            >
+              <button
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left"
+                style={{ color: '#F59E0B' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#1E2A45')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                onClick={() => { setActionsOpen(false); setConfirmMaint(inMaintenance ? 'disable' : 'enable') }}
+              >
+                <Wrench size={13} />
+                {inMaintenance ? 'Leave Maintenance Mode' : 'Enable Maintenance Mode'}
+              </button>
+            </div>
+          )}
+        </div>
+
         <button className="btn btn-ghost py-1.5 px-2" onClick={() => refetch()}>
           <RefreshCw size={13} />
         </button>
       </div>
+
+      {/* Maintenance progress banner */}
+      {maintOp && (
+        <div className="flex items-center gap-3 px-4 py-3" style={{ background: 'rgba(96,165,250,0.08)', borderBottom: '1px solid rgba(96,165,250,0.2)' }}>
+          <Loader2 size={15} className="animate-spin shrink-0" style={{ color: '#60A5FA' }} />
+          <p className="text-xs" style={{ color: '#60A5FA' }}>
+            {maintOp.action === 'enable' ? 'Enabling maintenance mode…' : 'Leaving maintenance mode…'}
+          </p>
+        </div>
+      )}
+      {maintJustDone && !maintOp && (
+        <div className="flex items-center gap-3 px-4 py-2" style={{ background: 'rgba(0,179,136,0.08)', borderBottom: '1px solid rgba(0,179,136,0.2)' }}>
+          <CheckCircle2 size={14} style={{ color: '#00B388' }} />
+          <p className="text-xs font-medium" style={{ color: '#00B388' }}>Operation completed</p>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="tab-bar">
@@ -96,6 +191,100 @@ export function HostDetailPage() {
         )}
         {activeTab === 'tasks' && <HostTasksTab hostId={hostId} />}
       </div>
+
+      {/* Maintenance confirm modal */}
+      {confirmMaint && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => !maintenanceMutation.isPending && setConfirmMaint(null)}
+        >
+          <div
+            className="rounded-xl p-6 space-y-4"
+            style={{ background: '#141C2E', border: '1px solid #1E2A45', width: 460 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <Wrench size={16} className="shrink-0 mt-0.5" style={{ color: '#F59E0B' }} />
+              <div>
+                <h2 className="text-sm font-semibold text-white">
+                  {confirmMaint === 'enable' ? 'Enable' : 'Leave'} Maintenance Mode on {server.name}?
+                </h2>
+                <p className="text-xs mt-1" style={{ color: '#8B9AB0' }}>
+                  {confirmMaint === 'enable'
+                    ? 'Virtual machines with auto or failover placement strategy will be live-migrated to other available hosts.'
+                    : "This host's resources will become available to the cluster again."
+                  }
+                </p>
+              </div>
+            </div>
+
+            {confirmMaint === 'enable' && (
+              vmsOnHost.length === 0 ? (
+                <p className="text-xs px-3 py-2 rounded" style={{ background: '#0D1117', color: '#566278' }}>
+                  No virtual machines are currently on this host.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {willMigrate.length > 0 && (
+                    <div>
+                      <p className="text-2xs font-medium mb-1" style={{ color: '#8B9AB0' }}>Will be migrated ({willMigrate.length}):</p>
+                      <div className="space-y-1 max-h-32 overflow-auto">
+                        {willMigrate.map(s => (
+                          <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded" style={{ background: '#0D1117' }}>
+                            <Monitor size={11} style={{ color: '#00B388' }} />
+                            <span className="text-xs text-white flex-1">{s.name}</span>
+                            <span className="text-2xs px-1.5 py-0.5 rounded capitalize" style={{ background: 'rgba(86,98,120,0.2)', color: '#8B9AB0' }}>
+                              {s.placementStrategy ?? 'auto'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {pinned.length > 0 && (
+                    <div className="rounded-lg p-3 space-y-2" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                      <p className="text-xs font-medium" style={{ color: '#EF4444' }}>
+                        Cannot enable maintenance mode — {pinned.length} pinned VM{pinned.length !== 1 ? 's' : ''} must be moved first
+                      </p>
+                      <div className="space-y-1 max-h-24 overflow-auto">
+                        {pinned.map(s => (
+                          <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded" style={{ background: '#0D1117' }}>
+                            <Monitor size={11} style={{ color: '#566278' }} />
+                            <span className="text-xs text-white flex-1">{s.name}</span>
+                            <span className="text-2xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}>pinned</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setConfirmMaint(null)}
+                disabled={maintenanceMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                style={{ background: 'rgba(245,158,11,0.2)', borderColor: 'rgba(245,158,11,0.4)', color: '#F59E0B' }}
+                disabled={maintenanceMutation.isPending || (confirmMaint === 'enable' && pinned.length > 0)}
+                onClick={() => maintenanceMutation.mutate({ enable: confirmMaint === 'enable' })}
+              >
+                {maintenanceMutation.isPending
+                  ? <><Loader2 size={13} className="animate-spin" /> {confirmMaint === 'enable' ? 'Enabling…' : 'Leaving…'}</>
+                  : <><Wrench size={13} /> {confirmMaint === 'enable' ? 'Enable' : 'Leave'} Maintenance Mode</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
