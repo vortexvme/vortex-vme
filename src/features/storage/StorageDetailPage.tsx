@@ -29,9 +29,8 @@ export function StorageDetailPage() {
 
   const ds = datastores?.find((d) => d.id === dsId)
 
-  // Cluster name: prefer direct reference on datastore; fall back to zone match
-  const clusterName = ds?.cluster?.name
-    ?? clustersData?.clusters?.find((c) => c.zone?.id === ds?.zone?.id)?.name
+  // Cluster name: match by zone id
+  const clusterName = clustersData?.clusters?.find((c) => c.zone?.id === ds?.zone?.id)?.name
 
   if (!ds) return (
     <div className="empty-state">
