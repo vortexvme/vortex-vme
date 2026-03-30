@@ -654,6 +654,11 @@ function ClusterVMsTab({
   const [actionsOpen, setActionsOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
+  // Column filters
+  const [filterName, setFilterName] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterHost, setFilterHost] = useState('')
+
   // ── Instance list ──────────────────────────────────────────────────────────
   const busy = moveOps.length > 0 || powerOps.size > 0
   const { data: instData, isLoading: instLoading, isFetching, refetch } = useQuery({
@@ -712,6 +717,14 @@ function ClusterVMsTab({
   }
   const vms = (instData?.instances ?? [])
     .filter((inst) => !clusterZoneId || inst.cloud?.id === clusterZoneId)
+    .filter((inst) => !filterName || inst.name.toLowerCase().includes(filterName.toLowerCase()))
+    .filter((inst) => !filterStatus || inst.status.toLowerCase().includes(filterStatus.toLowerCase()))
+    .filter((inst) => {
+      if (!filterHost) return true
+      const sid = inst.servers?.[0]
+      const host = sid ? (hostMap.get(sid) ?? '') : ''
+      return host.toLowerCase().includes(filterHost.toLowerCase())
+    })
     .sort((a, b) => a.name.localeCompare(b.name))
 
   const vmServerIdMap = new Map<number, number>() // instanceId → serverId
@@ -909,7 +922,9 @@ function ClusterVMsTab({
             <p className="text-xs mt-0.5" style={{ color: '#566278' }}>
               {selected.size > 0
                 ? `${selected.size} of ${vms.length} selected`
-                : `${vms.length} VM${vms.length !== 1 ? 's' : ''} in cluster`}
+                : (filterName || filterStatus || filterHost)
+                  ? `${vms.length} of ${(instData?.instances ?? []).filter(i => !clusterZoneId || i.cloud?.id === clusterZoneId).length} VM${vms.length !== 1 ? 's' : ''}`
+                  : `${vms.length} VM${vms.length !== 1 ? 's' : ''} in cluster`}
             </p>
           </div>
           {selected.size > 0 && (
@@ -1028,6 +1043,46 @@ function ClusterVMsTab({
                 <th>IP Address</th>
                 <th>Plan</th>
                 <th style={{ width: 100 }}>Actions</th>
+              </tr>
+              <tr>
+                <th />
+                <th>
+                  <input
+                    type="text"
+                    placeholder="Filter…"
+                    value={filterName}
+                    onChange={e => setFilterName(e.target.value)}
+                    style={{
+                      width: '100%', background: '#0D1117', border: '1px solid #1E2A45',
+                      borderRadius: 4, padding: '2px 6px', color: '#C8D6E5', fontSize: 11, outline: 'none',
+                    }}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    placeholder="Filter…"
+                    value={filterStatus}
+                    onChange={e => setFilterStatus(e.target.value)}
+                    style={{
+                      width: '100%', background: '#0D1117', border: '1px solid #1E2A45',
+                      borderRadius: 4, padding: '2px 6px', color: '#C8D6E5', fontSize: 11, outline: 'none',
+                    }}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    placeholder="Filter…"
+                    value={filterHost}
+                    onChange={e => setFilterHost(e.target.value)}
+                    style={{
+                      width: '100%', background: '#0D1117', border: '1px solid #1E2A45',
+                      borderRadius: 4, padding: '2px 6px', color: '#C8D6E5', fontSize: 11, outline: 'none',
+                    }}
+                  />
+                </th>
+                <th /><th /><th /><th />
               </tr>
             </thead>
             <tbody>
