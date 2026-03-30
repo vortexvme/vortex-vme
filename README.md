@@ -92,32 +92,24 @@ Open a browser and navigate to `https://<server-ip>/`. Your browser will warn ab
 
 ## Updating
 
-To apply a new version of the application on an already-deployed server:
+Use the `--update` flag to pull and rebuild without touching the TLS certificate, nginx config, or firewall:
 
 ```bash
-cd /opt/morpheus-vme-classic
-sudo git pull
-sudo npm install --no-audit --no-fund
-sudo npm run build 2>&1
-sudo mkdir -p /var/www/morpheus-vme-classic/dist
-sudo rsync -a --delete dist/ /var/www/morpheus-vme-classic/dist/
-sudo chown -R www-data:www-data /var/www/morpheus-vme-classic
-sudo nginx -s reload
+sudo bash /opt/morpheus-vme-classic/deploy.sh --update
 ```
 
-This pulls the latest code, rebuilds, replaces the static files, and reloads Nginx — no downtime, no changes to the TLS certificate or Nginx config.
+This will:
 
-If the Nginx config itself changed (e.g. after a deploy.sh update), apply it manually:
+1. Read the existing VME Manager URL from `config.json` automatically — no prompt
+2. Pull the latest code from GitHub
+3. Reinstall npm dependencies if needed
+4. Rebuild the production bundle
+5. Rsync the new build to the web root
+6. Reload Nginx
 
-```bash
-sudo cp /opt/morpheus-vme-classic/nginx/morpheus-vme.conf /etc/nginx/sites-available/morpheus-vme-classic
-# Re-substitute your VME URL:
-sudo sed -i "s|VME_MANAGER_URL_PLACEHOLDER|https://your-morpheus.example.com|g" \
-    /etc/nginx/sites-available/morpheus-vme-classic
-sudo nginx -t && sudo nginx -s reload
-```
+The TLS certificate and nginx configuration are left untouched, so any browser or OS trust store entries remain valid.
 
-Alternatively, re-running `sudo bash deploy.sh` from `/opt/morpheus-vme-classic` performs a full update including any config changes. Note that this will regenerate the TLS certificate — if you have already imported the old certificate into your browser or OS trust store, you will need to import the new one.
+> **Full reinstall:** If you need to reset everything (new TLS cert, nginx config changes, firewall), run `sudo bash /opt/morpheus-vme-classic/deploy.sh` without `--update`. Note this regenerates the TLS certificate — you will need to re-import it into any trust stores.
 
 ---
 
