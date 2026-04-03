@@ -2,6 +2,7 @@ import { apiClient } from './client'
 import {
   Instance,
   Container,
+  InstanceVolume,
   InstancesResponse,
   SnapshotsResponse,
   ProcessesResponse,
@@ -103,6 +104,30 @@ export async function suspendInstance(id: number) {
 
 export async function ejectInstance(id: number) {
   const resp = await apiClient.put(`/api/instances/${id}/eject`)
+  return resp.data
+}
+
+export async function mountIso(
+  instanceId: number,
+  volumes: InstanceVolume[],
+  cdromVolumeId: number,
+  isoImageId: number,
+) {
+  // Resize endpoint accepts all current volumes; only the CD-ROM entry
+  // gets virtualImageId set — everything else is passed through unchanged.
+  const resizeVolumes = volumes.map((v) => ({
+    id: v.id,
+    name: v.name,
+    size: v.size,
+    storageType: v.storageType,
+    controllerMountPoint: v.controllerMountPoint,
+    datastoreId: v.datastoreId ?? 'auto',
+    rootVolume: v.rootVolume,
+    ...(v.id === cdromVolumeId ? { virtualImageId: isoImageId } : {}),
+  }))
+  const resp = await apiClient.put(`/api/instances/${instanceId}/resize`, {
+    volumes: resizeVolumes,
+  })
   return resp.data
 }
 

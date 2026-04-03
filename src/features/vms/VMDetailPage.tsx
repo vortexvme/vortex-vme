@@ -14,8 +14,10 @@ import {
   Loader2,
   CheckCircle2,
   Disc,
+  Search,
 } from 'lucide-react'
-import { getInstance, startInstance, stopInstance, restartInstance, ejectInstance } from '@/api/instances'
+import { getInstance, startInstance, stopInstance, restartInstance, ejectInstance, mountIso } from '@/api/instances'
+import { listVirtualImages } from '@/api/virtualImages'
 import { consoleUrl } from '@/utils/vmeManagerUrl'
 import { getServer, listServers, moveServer } from '@/api/servers'
 import { StatusBadge } from '@/components/common/StatusDot'
@@ -56,7 +58,13 @@ export function VMDetailPage() {
   const [moveJustDone, setMoveJustDone] = useState(false)
   const [ejectJustDone, setEjectJustDone] = useState(false)
   const [ejectError, setEjectError] = useState(false)
+  const [loadIsoOpen, setLoadIsoOpen] = useState(false)
+  const [isoSearch, setIsoSearch] = useState('')
+  const [selectedIsoId, setSelectedIsoId] = useState<number | null>(null)
+  const [loadJustDone, setLoadJustDone] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
+  const hasCdromDevice = !!(instance?.volumes?.some((v) => v.volumeCategory === 'cd'))
   const hasCdrom = !!(instance?.volumes?.some((v) => v.volumeCategory === 'cd' && (v.size > 0 || v.datastoreId != null)))
 
   const ejectMutation = useMutation({
@@ -69,6 +77,35 @@ export function VMDetailPage() {
     onError: () => {
       setEjectError(true)
       setTimeout(() => setEjectError(false), 4_000)
+    },
+  })
+
+  const { data: virtualImagesData, isLoading: isoLoading } = useQuery({
+    queryKey: ['virtual-images', 'iso'],
+    queryFn: () => listVirtualImages({ imageType: 'iso', max: 200 }),
+    enabled: loadIsoOpen,
+    staleTime: 120_000,
+  })
+
+  const isos = (virtualImagesData?.virtualImages ?? [])
+    .filter((v) => v.status?.toLowerCase() === 'active')
+    .filter((v) => !isoSearch || v.name.toLowerCase().includes(isoSearch.toLowerCase()))
+
+  const cdromVolume = instance?.volumes?.find((v) => v.volumeCategory === 'cd')
+
+  const mountMutation = useMutation({
+    mutationFn: () => mountIso(instanceId, instance!.volumes!, cdromVolume!.id, selectedIsoId!),
+    onSuccess: () => {
+      setLoadIsoOpen(false)
+      setSelectedIsoId(null)
+      setIsoSearch('')
+      setLoadJustDone(true)
+      setTimeout(() => setLoadJustDone(false), 3_000)
+      refetch()
+    },
+    onError: () => {
+      setLoadError(true)
+      setTimeout(() => setLoadError(false), 4_000)
     },
   })
 
@@ -268,17 +305,29 @@ export function VMDetailPage() {
             Move
           </button>
 
-          {/* Eject CD-ROM — only shown when VM has a CD-ROM device */}
+          {/* Load ISO — shown when VM has a CD-ROM device */}
+          {hasCdromDevice && (
+            <button
+              className="btn btn-secondary py-1.5 px-3"
+              title="Load ISO into CD-ROM"
+              onClick={() => { setSelectedIsoId(null); setIsoSearch(''); setLoadIsoOpen(true) }}
+            >
+              <Disc size={13} />
+              Load ISO
+            </button>
+          )}
+
+          {/* Eject CD-ROM — only shown when an ISO is mounted */}
           {hasCdrom && (
             <button
               className="btn btn-secondary py-1.5 px-3"
-              title="Eject CD-ROM / ISO"
+              title="Eject ISO from CD-ROM"
               disabled={ejectMutation.isPending}
               onClick={() => ejectMutation.mutate()}
             >
               {ejectMutation.isPending
                 ? <Loader2 size={13} className="animate-spin" />
-                : <Disc size={13} />
+                : <Disc size={13} style={{ color: '#60A5FA' }} />
               }
               {ejectMutation.isPending ? 'Ejecting…' : 'Eject CD-ROM'}
             </button>
@@ -327,6 +376,23 @@ export function VMDetailPage() {
       {ejectError && !ejectMutation.isPending && (
         <div className="flex items-center gap-3 px-4 py-2" style={{ background: 'rgba(239,68,68,0.08)', borderBottom: '1px solid rgba(239,68,68,0.2)' }}>
           <p className="text-xs font-medium" style={{ color: '#EF4444' }}>Eject failed — check VME Manager</p>
+        </div>
+      )}
+      {mountMutation.isPending && (
+        <div className="flex items-center gap-3 px-4 py-3" style={{ background: 'rgba(96,165,250,0.08)', borderBottom: '1px solid rgba(96,165,250,0.2)' }}>
+          <Loader2 size={15} className="animate-spin shrink-0" style={{ color: '#60A5FA' }} />
+          <p className="text-xs" style={{ color: '#60A5FA' }}>Loading ISO…</p>
+        </div>
+      )}
+      {loadJustDone && !mountMutation.isPending && (
+        <div className="flex items-center gap-3 px-4 py-2" style={{ background: 'rgba(0,179,136,0.08)', borderBottom: '1px solid rgba(0,179,136,0.2)' }}>
+          <CheckCircle2 size={14} style={{ color: '#00B388' }} />
+          <p className="text-xs font-medium" style={{ color: '#00B388' }}>ISO loaded</p>
+        </div>
+      )}
+      {loadError && !mountMutation.isPending && (
+        <div className="flex items-center gap-3 px-4 py-2" style={{ background: 'rgba(239,68,68,0.08)', borderBottom: '1px solid rgba(239,68,68,0.2)' }}>
+          <p className="text-xs font-medium" style={{ color: '#EF4444' }}>Load ISO failed — check VME Manager</p>
         </div>
       )}
 
@@ -411,6 +477,98 @@ export function VMDetailPage() {
                 {moveMutation.isPending
                   ? <><Loader2 size={13} className="animate-spin" /> Moving…</>
                   : <><MoveRight size={13} /> Move</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Load ISO Modal ── */}
+      {loadIsoOpen && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => !mountMutation.isPending && setLoadIsoOpen(false)}
+        >
+          <div
+            className="rounded-xl p-6 space-y-4 flex flex-col"
+            style={{ background: '#141C2E', border: '1px solid #1E2A45', width: 460, maxHeight: '70vh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <Disc size={16} className="shrink-0 mt-0.5" style={{ color: '#60A5FA' }} />
+              <div>
+                <h2 className="text-sm font-semibold text-white">Load ISO — {instance.name}</h2>
+                <p className="text-xs mt-1" style={{ color: '#8B9AB0' }}>
+                  Select an ISO image to mount into the CD-ROM drive.
+                </p>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: '#566278' }} />
+              <input
+                type="text"
+                placeholder="Search ISOs…"
+                value={isoSearch}
+                onChange={e => setIsoSearch(e.target.value)}
+                autoFocus
+                className="input pl-8"
+              />
+            </div>
+
+            {/* ISO list */}
+            <div className="overflow-auto flex-1 space-y-1 min-h-0" style={{ maxHeight: 280 }}>
+              {isoLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 size={20} className="animate-spin" style={{ color: '#566278' }} />
+                </div>
+              ) : isos.length === 0 ? (
+                <p className="text-xs text-center py-6" style={{ color: '#566278' }}>
+                  {isoSearch ? 'No ISOs match your search.' : 'No active ISO images found.'}
+                </p>
+              ) : isos.map(iso => (
+                <button
+                  key={iso.id}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-left"
+                  style={{
+                    background: selectedIsoId === iso.id ? 'rgba(96,165,250,0.15)' : '#0D1117',
+                    border: `1px solid ${selectedIsoId === iso.id ? 'rgba(96,165,250,0.4)' : '#1E2A45'}`,
+                  }}
+                  onClick={() => setSelectedIsoId(iso.id)}
+                >
+                  <Disc size={12} style={{ color: selectedIsoId === iso.id ? '#60A5FA' : '#566278', flexShrink: 0 }} />
+                  <span className="text-xs text-white flex-1 truncate">{iso.name}</span>
+                  {iso.rawSizeGB != null && iso.rawSizeGB > 0 && (
+                    <span className="text-2xs shrink-0" style={{ color: '#566278' }}>
+                      {iso.rawSizeGB.toFixed(1)} GB
+                    </span>
+                  )}
+                  {selectedIsoId === iso.id && (
+                    <span className="text-2xs px-1.5 py-0.5 rounded shrink-0" style={{ background: 'rgba(96,165,250,0.2)', color: '#60A5FA' }}>selected</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setLoadIsoOpen(false)}
+                disabled={mountMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={!selectedIsoId || mountMutation.isPending || !cdromVolume || !instance.volumes}
+                onClick={() => mountMutation.mutate()}
+              >
+                {mountMutation.isPending
+                  ? <><Loader2 size={13} className="animate-spin" /> Loading…</>
+                  : <><Disc size={13} /> Load ISO</>
                 }
               </button>
             </div>

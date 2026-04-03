@@ -428,6 +428,26 @@ export interface NetworksResponse {
 
 // ─── Data Store ───────────────────────────────────────────────────────────────
 
+// ─── Virtual Image ────────────────────────────────────────────────────────────
+
+export interface VirtualImage {
+  id: number
+  name: string
+  imageType: string
+  status: string
+  osType?: { id: number; name: string; code?: string }
+  rawSize?: number
+  rawSizeGB?: number
+  visibility?: string
+  dateCreated?: string
+  lastUpdated?: string
+}
+
+export interface VirtualImagesResponse {
+  virtualImages: VirtualImage[]
+  meta: PaginationMeta
+}
+
 export interface DataStore {
   id: number
   name: string
