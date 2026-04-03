@@ -13,8 +13,9 @@ import {
   MoveRight,
   Loader2,
   CheckCircle2,
+  Disc,
 } from 'lucide-react'
-import { getInstance, startInstance, stopInstance, restartInstance } from '@/api/instances'
+import { getInstance, startInstance, stopInstance, restartInstance, ejectInstance } from '@/api/instances'
 import { consoleUrl } from '@/utils/vmeManagerUrl'
 import { getServer, listServers, moveServer } from '@/api/servers'
 import { StatusBadge } from '@/components/common/StatusDot'
@@ -53,6 +54,23 @@ export function VMDetailPage() {
   const [targetHostId, setTargetHostId] = useState<number | null>(null)
   const [moveOp, setMoveOp] = useState<{ targetHostName: string; startedAt: number } | null>(null)
   const [moveJustDone, setMoveJustDone] = useState(false)
+  const [ejectJustDone, setEjectJustDone] = useState(false)
+  const [ejectError, setEjectError] = useState(false)
+
+  const hasCdrom = !!(instance?.volumes?.some((v) => v.volumeCategory === 'cd'))
+
+  const ejectMutation = useMutation({
+    mutationFn: () => ejectInstance(instanceId),
+    onSuccess: () => {
+      setEjectJustDone(true)
+      setTimeout(() => setEjectJustDone(false), 3_000)
+      refetch()
+    },
+    onError: () => {
+      setEjectError(true)
+      setTimeout(() => setEjectError(false), 4_000)
+    },
+  })
 
   // Fetch the VM's own server record — has parentServer (= hypervisor) and interfaces (= networks)
   const vmServerId = instance?.servers?.[0]
@@ -250,6 +268,22 @@ export function VMDetailPage() {
             Move
           </button>
 
+          {/* Eject CD-ROM — only shown when VM has a CD-ROM device */}
+          {hasCdrom && (
+            <button
+              className="btn btn-secondary py-1.5 px-3"
+              title="Eject CD-ROM / ISO"
+              disabled={ejectMutation.isPending}
+              onClick={() => ejectMutation.mutate()}
+            >
+              {ejectMutation.isPending
+                ? <Loader2 size={13} className="animate-spin" />
+                : <Disc size={13} />
+              }
+              {ejectMutation.isPending ? 'Ejecting…' : 'Eject CD-ROM'}
+            </button>
+          )}
+
         </div>
 
         <button
@@ -274,6 +308,25 @@ export function VMDetailPage() {
         <div className="flex items-center gap-3 px-4 py-2" style={{ background: 'rgba(0,179,136,0.08)', borderBottom: '1px solid rgba(0,179,136,0.2)' }}>
           <CheckCircle2 size={14} style={{ color: '#00B388' }} />
           <p className="text-xs font-medium" style={{ color: '#00B388' }}>Migration completed</p>
+        </div>
+      )}
+
+      {/* Eject banners */}
+      {ejectMutation.isPending && (
+        <div className="flex items-center gap-3 px-4 py-3" style={{ background: 'rgba(96,165,250,0.08)', borderBottom: '1px solid rgba(96,165,250,0.2)' }}>
+          <Loader2 size={15} className="animate-spin shrink-0" style={{ color: '#60A5FA' }} />
+          <p className="text-xs" style={{ color: '#60A5FA' }}>Ejecting CD-ROM…</p>
+        </div>
+      )}
+      {ejectJustDone && !ejectMutation.isPending && (
+        <div className="flex items-center gap-3 px-4 py-2" style={{ background: 'rgba(0,179,136,0.08)', borderBottom: '1px solid rgba(0,179,136,0.2)' }}>
+          <CheckCircle2 size={14} style={{ color: '#00B388' }} />
+          <p className="text-xs font-medium" style={{ color: '#00B388' }}>CD-ROM ejected</p>
+        </div>
+      )}
+      {ejectError && !ejectMutation.isPending && (
+        <div className="flex items-center gap-3 px-4 py-2" style={{ background: 'rgba(239,68,68,0.08)', borderBottom: '1px solid rgba(239,68,68,0.2)' }}>
+          <p className="text-xs font-medium" style={{ color: '#EF4444' }}>Eject failed — check VME Manager</p>
         </div>
       )}
 
