@@ -97,7 +97,7 @@ export function DashboardPage() {
       <div>
         <h1 className="text-xl font-semibold text-white">Dashboard</h1>
         <p className="text-xs mt-0.5" style={{ color: '#566278' }}>
-          HPE Morpheus VME Classic — Inventory Overview
+          Vortex — Inventory Overview
         </p>
       </div>
 

@@ -29,10 +29,10 @@ export function TopBar() {
           className="w-5 h-5 rounded flex items-center justify-center font-bold text-xs shrink-0"
           style={{ background: '#00B388', color: '#000' }}
         >
-          H
+          V
         </div>
         <span className="font-semibold text-xs tracking-wide" style={{ color: '#8B9AB0' }}>
-          VME Classic
+          Vortex
         </span>
       </div>
 

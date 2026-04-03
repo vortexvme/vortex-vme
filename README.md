@@ -1,9 +1,9 @@
-# HPE Morpheus VME Classic
+# Vortex
 
-> A familiar enterprise-style VM management frontend for **HPE Morpheus VM Essentials (VME) Manager**,
+> A familiar enterprise-style VM management frontend for **Morpheus VM Essentials (VME) Manager**,
 > built with React 18, TypeScript, Tailwind CSS, and the official Morpheus REST API.
 
-![HPE Morpheus VME Classic](https://img.shields.io/badge/HPE-Morpheus%20VME%20Classic-00B388?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIgZmlsbD0iIzAwQjM4OCIvPjx0ZXh0IHg9IjE2IiB5PSIyMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSJ3aGl0ZSI+SDwvdGV4dD48L3N2Zz4=)
+![Vortex](https://img.shields.io/badge/Vortex-vortex--vme-00B388?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIgZmlsbD0iIzAwQjM4OCIvPjx0ZXh0IHg9IjE2IiB5PSIyMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSJ3aGl0ZSI+VjwvdGV4dD48L3N2Zz4=)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)
 ![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite)
@@ -13,15 +13,15 @@
 
 ## Overview
 
-VME Classic gives VM administrators a **familiar enterprise HTML5 client experience**
-for managing HPE Morpheus VM Essentials environments — without learning a new UI paradigm.
+Vortex gives VM administrators a **familiar enterprise HTML5 client experience**
+for managing Morpheus VM Essentials environments — without learning a new UI paradigm.
 
 ### Key Features
 
 | Feature | Details |
 |---------|---------|
 | **Dark enterprise-style UI** | Navy topbar, collapsible 280px inventory tree, tabbed detail views |
-| **HPE Design System** | HPE Green (`#00B388`) accents, HPE Graphik/Metric font stack, enterprise aesthetics |
+| **Enterprise aesthetics** | Green (`#00B388`) accents, clean font stack, enterprise aesthetics |
 | **Secure Authentication** | `POST /oauth/token` with `grant_type=password`; tokens in `localStorage`/`sessionStorage` |
 | **Silent Token Refresh** | Automatic 401-triggered refresh without user interruption |
 | **VM Management** | Full list, detail, power on/off/restart/suspend, create wizard, console link |
@@ -58,10 +58,10 @@ for managing HPE Morpheus VM Essentials environments — without learning a new 
 
 ## Production Deployment on Ubuntu 24.04
 
-Run this on the Ubuntu server — no prior setup needed. The script clones the repo into `/opt/morpheus-vme-classic` itself:
+Run this on the Ubuntu server — no prior setup needed. The script clones the repo into `/opt/vortex-vme` itself:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jstiops/morpheus-vme-classic/master/deploy.sh -o deploy.sh
+curl -fsSL https://raw.githubusercontent.com/vortex-vme/vortex-vme/main/deploy.sh -o deploy.sh
 sudo bash deploy.sh
 ```
 
@@ -69,9 +69,9 @@ sudo bash deploy.sh
 
 1. Install Node.js 20 LTS (via NodeSource), Nginx, and OpenSSL if not already present
 2. Prompt once for your VME Manager URL (e.g. `https://morpheus.example.com`)
-3. Generate a self-signed TLS certificate (RSA 2048, 10-year validity) stored at `/etc/ssl/morpheus-vme/`
+3. Generate a self-signed TLS certificate (RSA 2048, 10-year validity) stored at `/etc/ssl/vortex-vme/`
 4. Run `npm ci && npm run build` to produce the static bundle
-5. Copy `dist/` to `/var/www/morpheus-vme-classic/dist/`
+5. Copy `dist/` to `/var/www/vortex-vme/dist/`
 6. Write the Nginx site config — listens on **HTTPS port 443 only**, reverse proxies `/api/*` and `/oauth/*` to the VME Manager URL, serves the SPA with a fallback to `index.html`
 7. Enable `ufw` firewall rules for HTTPS and SSH — port 80 is not opened
 8. Reload Nginx
@@ -79,14 +79,14 @@ sudo bash deploy.sh
 After ~2 minutes you'll see:
 
 ```
-✅ HPE Morpheus VME Classic deployed successfully!
+✅ Vortex deployed successfully!
 
-  Dashboard:   https://10.0.0.50/
-  VME Proxy:   https://10.0.0.50/api/ → https://your-morpheus.example.com/api/
-  TLS cert:    /etc/ssl/morpheus-vme/cert.pem
+  Dashboard:   https://morpheus-proxy.example.com/
+  VME Proxy:   https://morpheus-proxy.example.com/api/ → https://your-morpheus.example.com/api/
+  TLS cert:    /etc/ssl/vortex-vme/cert.pem
 ```
 
-Open a browser and navigate to `https://<server-ip>/`. Your browser will warn about the self-signed certificate — click **Advanced → Proceed**. To suppress the warning permanently, import `/etc/ssl/morpheus-vme/cert.pem` into your OS or browser certificate store.
+Open a browser and navigate to `https://<server>/`. Your browser will warn about the self-signed certificate — click **Advanced → Proceed**. To suppress the warning permanently, import `/etc/ssl/vortex-vme/cert.pem` into your OS or browser certificate store.
 
 ---
 
@@ -95,7 +95,7 @@ Open a browser and navigate to `https://<server-ip>/`. Your browser will warn ab
 Use the `--update` flag to pull and rebuild without touching the TLS certificate, nginx config, or firewall:
 
 ```bash
-sudo bash /opt/morpheus-vme-classic/deploy.sh --update
+sudo bash /opt/vortex-vme/deploy.sh --update
 ```
 
 This will:
@@ -109,20 +109,20 @@ This will:
 
 The TLS certificate and nginx configuration are left untouched, so any browser or OS trust store entries remain valid.
 
-> **Full reinstall:** If you need to reset everything (new TLS cert, nginx config changes, firewall), run `sudo bash /opt/morpheus-vme-classic/deploy.sh` without `--update`. Note this regenerates the TLS certificate — you will need to re-import it into any trust stores.
+> **Full reinstall:** If you need to reset everything (new TLS cert, nginx config changes, firewall), run `sudo bash /opt/vortex-vme/deploy.sh` without `--update`. Note this regenerates the TLS certificate — you will need to re-import it into any trust stores.
 
 ---
 
 ## Nginx Reverse Proxy Details
 
-`nginx/morpheus-vme.conf` is the template deployed by `deploy.sh`. Key rules:
+`nginx/vortex-vme.conf` is the template deployed by `deploy.sh`. Key rules:
 
 ```nginx
 server {
     listen 443 ssl;
 
-    ssl_certificate     /etc/ssl/morpheus-vme/cert.pem;
-    ssl_certificate_key /etc/ssl/morpheus-vme/key.pem;
+    ssl_certificate     /etc/ssl/vortex-vme/cert.pem;
+    ssl_certificate_key /etc/ssl/vortex-vme/key.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
 
     location /api/ {
@@ -197,7 +197,7 @@ viewport 1024 px recommended.
 
 ## License
 
-MIT © 2025 — HPE Morpheus VME Classic Contributors
+MIT © 2025 — Vortex Contributors
 
 > This project is not affiliated with or endorsed by Hewlett Packard Enterprise.
 > It uses the public Morpheus REST API to provide an alternative UI.

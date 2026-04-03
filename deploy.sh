@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # =============================================================================
-# HPE Morpheus VME Classic — Deploy Script for Ubuntu 24.04
+# Vortex — Deploy Script for Ubuntu 24.04
 # Usage:  sudo bash deploy.sh           (fresh install)
 #         sudo bash deploy.sh --update  (pull + rebuild only, keeps TLS cert)
 # =============================================================================
 set -euo pipefail
 
-APP_NAME="morpheus-vme-classic"
+APP_NAME="vortex-vme"
 APP_DIR="/opt/${APP_NAME}"
 STATIC_DIR="/var/www/${APP_NAME}/dist"
-SSL_DIR="/etc/ssl/morpheus-vme"
+SSL_DIR="/etc/ssl/vortex-vme"
 NGINX_CONF="/etc/nginx/sites-available/${APP_NAME}"
 NGINX_ENABLED="/etc/nginx/sites-enabled/${APP_NAME}"
-REPO_URL="https://github.com/jstiops/morpheus-vme-classic.git"
+REPO_URL="https://github.com/vortex-vme/vortex-vme.git"
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
@@ -56,7 +56,7 @@ SERVER_HOST=$(hostname -f 2>/dev/null || echo "localhost")
 if [[ "$UPDATE_MODE" == true ]]; then
     echo ""
     echo "╔═══════════════════════════════════════════════════════════════╗"
-    echo "║      HPE Morpheus VME Classic — Update                        ║"
+    echo "║      Vortex — Update                        ║"
     echo "╚═══════════════════════════════════════════════════════════════╝"
 
     if [[ ! -d "$APP_DIR/.git" ]]; then
@@ -106,7 +106,7 @@ EOF
 
     echo ""
     echo -e "${GREEN}╔═══════════════════════════════════════════════════════════════╗"
-    echo -e "║  ✅  HPE Morpheus VME Classic updated successfully!           ║"
+    echo -e "║  ✅  Vortex updated successfully!           ║"
     echo -e "╚═══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  ${CYAN}Dashboard:${NC}   https://${SERVER_HOST}/"
@@ -119,7 +119,7 @@ fi
 # ══════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "╔═══════════════════════════════════════════════════════════════╗"
-echo "║      HPE Morpheus VME Classic — Deployment Script             ║"
+echo "║      Vortex — Deployment Script             ║"
 echo "║      Ubuntu 24.04 LTS                                         ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 
@@ -180,7 +180,7 @@ openssl req -x509 -nodes -days 3650 \
     -newkey rsa:2048 \
     -keyout "${SSL_DIR}/key.pem" \
     -out    "${SSL_DIR}/cert.pem" \
-    -subj   "/C=US/O=HPE Morpheus VME Classic/CN=${SERVER_HOST}" \
+    -subj   "/C=US/O=Vortex/CN=${SERVER_HOST}" \
     -addext "subjectAltName=IP:${SERVER_IP},DNS:${SERVER_HOST},DNS:localhost" \
     2>/dev/null
 
@@ -228,7 +228,7 @@ print_ok "Static files deployed to $STATIC_DIR"
 
 # ── Step 8: Configure Nginx ───────────────────────────────────────────────────
 print_step "Configuring Nginx"
-cp "$APP_DIR/nginx/morpheus-vme.conf" "$NGINX_CONF"
+cp "$APP_DIR/nginx/vortex-vme.conf" "$NGINX_CONF"
 sed -i "s|VME_MANAGER_URL_PLACEHOLDER|${VME_URL}|g" "$NGINX_CONF"
 
 ln -sf "$NGINX_CONF" "$NGINX_ENABLED"
@@ -255,7 +255,7 @@ print_ok "Nginx running"
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}╔═══════════════════════════════════════════════════════════════╗"
-echo -e "║  ✅  HPE Morpheus VME Classic deployed successfully!          ║"
+echo -e "║  ✅  Vortex deployed successfully!          ║"
 echo -e "╚═══════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "  ${CYAN}Dashboard:${NC}   https://${SERVER_HOST}/"

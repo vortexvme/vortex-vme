@@ -61,10 +61,10 @@ export function LoginPage() {
             className="w-7 h-7 rounded flex items-center justify-center font-bold text-sm"
             style={{ background: '#00B388', color: '#000' }}
           >
-            H
+            V
           </div>
           <span className="font-semibold text-white tracking-wide text-sm">
-            HPE Morpheus VME Classic
+            Vortex
           </span>
         </div>
       </div>
@@ -94,7 +94,7 @@ export function LoginPage() {
             </div>
             <h1 className="text-lg font-semibold text-white">Sign in</h1>
             <p className="text-xs mt-1" style={{ color: '#566278' }}>
-              HPE Morpheus VME Manager
+              Morpheus VME Manager
             </p>
           </div>
 
