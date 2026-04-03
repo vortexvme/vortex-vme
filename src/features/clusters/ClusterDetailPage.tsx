@@ -727,7 +727,7 @@ function ClusterVMsTab({
     })
     .filter((inst) => {
       if (!filterCdrom) return true
-      const hasCdrom = !!(inst.volumes?.some((v) => v.volumeCategory === 'cd'))
+      const hasCdrom = !!(inst.volumes?.some((v) => v.volumeCategory === 'cd' && (v.size > 0 || v.datastoreId != null)))
       return filterCdrom === 'mounted' ? hasCdrom : !hasCdrom
     })
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -1115,7 +1115,7 @@ function ClusterVMsTab({
                 const isPowerOp = powerOps.has(inst.id)
                 const isBusy = isMoving || isPowerOp
                 const instStatus = inst.status.toLowerCase()
-                const hasCdrom = !!(inst.volumes?.some((v) => v.volumeCategory === 'cd'))
+                const hasCdrom = !!(inst.volumes?.some((v) => v.volumeCategory === 'cd' && (v.size > 0 || v.datastoreId != null)))
 
                 return (
                   <tr key={inst.id} className={clsx(isBusy && 'opacity-60')}>

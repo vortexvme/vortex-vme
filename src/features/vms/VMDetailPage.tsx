@@ -57,7 +57,7 @@ export function VMDetailPage() {
   const [ejectJustDone, setEjectJustDone] = useState(false)
   const [ejectError, setEjectError] = useState(false)
 
-  const hasCdrom = !!(instance?.volumes?.some((v) => v.volumeCategory === 'cd'))
+  const hasCdrom = !!(instance?.volumes?.some((v) => v.volumeCategory === 'cd' && (v.size > 0 || v.datastoreId != null)))
 
   const ejectMutation = useMutation({
     mutationFn: () => ejectInstance(instanceId),
