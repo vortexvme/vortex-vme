@@ -657,7 +657,7 @@ function ClusterVMsTab({
   const [filterName, setFilterName] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterHost, setFilterHost] = useState('')
-  const [filterCdrom, setFilterCdrom] = useState('')
+  const [filterCdrom, setFilterCdrom] = useState(false)
 
   // ── Instance list ──────────────────────────────────────────────────────────
   const busy = moveOps.length > 0 || powerOps.size > 0
@@ -727,8 +727,7 @@ function ClusterVMsTab({
     })
     .filter((inst) => {
       if (!filterCdrom) return true
-      const label = inst.volumes?.some((v) => v.volumeCategory === 'cd' && (v.size > 0 || v.datastoreId != null)) ? 'mounted' : '—'
-      return label.toLowerCase().includes(filterCdrom.toLowerCase())
+      return !!(inst.volumes?.some((v) => v.volumeCategory === 'cd' && (v.size > 0 || v.datastoreId != null)))
     })
     .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -927,7 +926,7 @@ function ClusterVMsTab({
             <p className="text-xs mt-0.5" style={{ color: '#566278' }}>
               {selected.size > 0
                 ? `${selected.size} of ${vms.length} selected`
-                : (filterName || filterStatus || filterHost || filterCdrom)
+                : (filterName || filterStatus || filterHost || filterCdrom === true)
                   ? `${vms.length} of ${(instData?.instances ?? []).filter(i => !clusterZoneId || i.cloud?.id === clusterZoneId).length} VM${vms.length !== 1 ? 's' : ''}`
                   : `${vms.length} VM${vms.length !== 1 ? 's' : ''} in cluster`}
             </p>
@@ -1026,6 +1025,14 @@ function ClusterVMsTab({
         <div className="empty-state">
           <Monitor size={32} style={{ color: '#566278' }} />
           <p className="text-sm" style={{ color: '#8B9AB0' }}>No virtual machines found</p>
+          {(filterName || filterStatus || filterHost || filterCdrom) && (
+            <button
+              className="btn btn-secondary py-1 px-3 mt-2"
+              onClick={() => { setFilterName(''); setFilterStatus(''); setFilterHost(''); setFilterCdrom(false) }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       ) : (
         <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1E2A45' }}>
@@ -1046,7 +1053,18 @@ function ClusterVMsTab({
                 <th>Host</th>
                 <th>Placement Strategy</th>
                 <th>Plan</th>
-                <th style={{ width: 72 }}>CD-ROM</th>
+                <th style={{ width: 90 }}>
+                  <button
+                    onClick={() => setFilterCdrom(v => !v)}
+                    className="flex items-center gap-1"
+                    style={{ color: filterCdrom ? '#60A5FA' : 'inherit', background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}
+                    title={filterCdrom ? 'Show all VMs' : 'Show only VMs with ISO mounted'}
+                  >
+                    <Disc size={11} style={{ color: filterCdrom ? '#60A5FA' : '#566278' }} />
+                    CD-ROM
+                    {filterCdrom && <span style={{ color: '#60A5FA', fontSize: 9, marginLeft: 1 }}>●</span>}
+                  </button>
+                </th>
               </tr>
               <tr>
                 <th />
@@ -1086,19 +1104,7 @@ function ClusterVMsTab({
                     }}
                   />
                 </th>
-                <th /><th />
-                <th>
-                  <input
-                    type="text"
-                    placeholder="Filter…"
-                    value={filterCdrom}
-                    onChange={e => setFilterCdrom(e.target.value)}
-                    style={{
-                      width: '100%', background: '#0D1117', border: '1px solid #1E2A45',
-                      borderRadius: 4, padding: '2px 6px', color: '#C8D6E5', fontSize: 11, outline: 'none',
-                    }}
-                  />
-                </th>
+                <th /><th /><th />
               </tr>
             </thead>
             <tbody>
