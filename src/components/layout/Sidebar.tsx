@@ -359,7 +359,7 @@ export function Sidebar() {
                         statusDot={inst.status}
                         indent={1}
                         active={p === `/vms/${inst.id}`}
-                        onClick={() => navigate(`/vms/${inst.id}`)}
+                        onClick={() => navigate(`/vms/${inst.id}`, { state: { back: `/clusters/${cluster.id}?tab=vms` } })}
                       />
                     ))}
                   </Section>

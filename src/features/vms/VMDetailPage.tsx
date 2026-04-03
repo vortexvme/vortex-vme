@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
@@ -37,6 +37,8 @@ type TabId = (typeof TABS)[number]['id']
 export function VMDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const backUrl: string = (location.state as { back?: string } | null)?.back ?? '/vms'
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = (searchParams.get('tab') as TabId) ?? 'summary'
@@ -146,7 +148,7 @@ export function VMDetailPage() {
     return (
       <div className="empty-state">
         <p>VM not found</p>
-        <button className="btn btn-secondary" onClick={() => navigate('/vms')}>
+        <button className="btn btn-secondary" onClick={() => navigate(backUrl)}>
           Back to VMs
         </button>
       </div>
@@ -166,7 +168,7 @@ export function VMDetailPage() {
       >
         <button
           className="btn btn-ghost p-1"
-          onClick={() => navigate('/vms')}
+          onClick={() => navigate(backUrl)}
           title="Back to VMs"
         >
           <ArrowLeft size={15} />

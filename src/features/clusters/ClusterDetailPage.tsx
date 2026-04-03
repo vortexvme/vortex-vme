@@ -624,6 +624,7 @@ interface MoveOp {
 }
 
 function ClusterVMsTab({
+  clusterId,
   clusterZoneId,
   clusterHosts,
 }: {
@@ -1131,7 +1132,7 @@ function ClusterVMsTab({
                     </td>
                     <td
                       className="cursor-pointer"
-                      onClick={() => navigate(`/vms/${inst.id}`)}
+                      onClick={() => navigate(`/vms/${inst.id}`, { state: { back: `/clusters/${clusterId}?tab=vms` } })}
                     >
                       <div className="flex items-center gap-2">
                         {isBusy
