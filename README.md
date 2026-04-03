@@ -61,7 +61,7 @@ for managing Morpheus VM Essentials environments — without learning a new UI p
 Run this on the Ubuntu server — no prior setup needed. The script clones the repo into `/opt/vortex-vme` itself:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vortex-vme/vortex-vme/main/deploy.sh -o deploy.sh
+curl -fsSL https://raw.githubusercontent.com/vortexvme/vortex-vme/main/deploy.sh -o deploy.sh
 sudo bash deploy.sh
 ```
 

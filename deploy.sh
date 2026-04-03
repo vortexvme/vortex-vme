@@ -12,7 +12,7 @@ STATIC_DIR="/var/www/${APP_NAME}/dist"
 SSL_DIR="/etc/ssl/vortex-vme"
 NGINX_CONF="/etc/nginx/sites-available/${APP_NAME}"
 NGINX_ENABLED="/etc/nginx/sites-enabled/${APP_NAME}"
-REPO_URL="https://github.com/vortex-vme/vortex-vme.git"
+REPO_URL="https://github.com/vortexvme/vortex-vme.git"
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
