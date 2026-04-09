@@ -111,6 +111,14 @@ function ClusterSummaryTab({ cluster }: { cluster: Awaited<ReturnType<typeof get
   const cpuPct = cluster.workerStats?.cpuUsage ?? 0
   const memUsed = cluster.workerStats?.usedMemory ?? 0
   const memMax = cluster.workerStats?.maxMemory ?? 0
+
+  const clusterServerIds = new Set((cluster.servers ?? []).map((s) => s.id))
+  const { data: hypervisorsData } = useQuery({
+    queryKey: ['servers', 'hypervisors'],
+    queryFn: () => listServers({ max: 100, vmHypervisor: true }),
+    staleTime: 30_000,
+  })
+  const fullServers = (hypervisorsData?.servers ?? []).filter((s) => clusterServerIds.has(s.id))
   const memPct = memMax > 0 ? (memUsed / memMax) * 100 : 0
 
   return (
@@ -190,7 +198,7 @@ function ClusterSummaryTab({ cluster }: { cluster: Awaited<ReturnType<typeof get
 
       {/* Pacemaker — only shown on HVM/GFS2 clusters that have a clusterIdentifier */}
       {cluster.clusterIdentifier && (() => {
-        const servers = cluster.servers ?? []
+        const servers = fullServers.length > 0 ? fullServers : (cluster.servers ?? [])
         const statusColor = (s: string) =>
           s === 'online' ? '#00B388' : s === 'standby' ? '#F59E0B' : s === 'offline' ? '#6B7280' : '#EF4444'
         const counts = servers.reduce<Record<string, number>>((acc, s) => {

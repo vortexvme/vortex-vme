@@ -159,6 +159,7 @@ export interface ComputeServer {
   cloud?: { id: number; name: string; code: string }
   zone?: { id: number; name: string }
   serverGroup?: { id: number; name: string }
+  serverGroupMemberStatus?: string
   parentServer?: { id: number; name: string }
   computeServerType?: {
     id: number
