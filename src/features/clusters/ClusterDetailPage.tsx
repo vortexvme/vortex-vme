@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCluster } from '@/api/clouds'
 import { listInstances, deleteInstance } from '@/api/instances'
-import { listServers, getZoneHistory, startServer, stopServer, restartServer, moveServer, setServerPlacementStrategy, enableMaintenanceMode, leaveMaintenanceMode, upgradeServerAgent, getProcess } from '@/api/servers'
+import { listServers, getZoneHistory, startServer, stopServer, restartServer, moveServer, setServerPlacementStrategy, enableMaintenanceMode, leaveMaintenanceMode, upgradeServerAgent } from '@/api/servers'
 import { PageLoader } from '@/components/common/LoadingSpinner'
 import { StatusBadge } from '@/components/common/StatusDot'
 import { ArrowLeft, Layers, Server, Monitor, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle, Play, Square, RotateCcw, MoveRight, Loader2, CheckCircle2, Wrench, Tag, ChevronDown, Trash2, Disc } from 'lucide-react'
@@ -272,49 +272,69 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
     staleTime: 60_000,
   })
 
-  const [upgradingHostId, setUpgradingHostId] = useState<number | null>(null)
-  const [upgradeOp, setUpgradeOp] = useState<{ hostId: number; hostName: string; processId: number } | null>(null)
-  const [upgradeDone, setUpgradeDone] = useState<{ hostId: number; success: boolean } | null>(null)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [actionsOpen, setActionsOpen] = useState(false)
+  const [upgradingHostIds, setUpgradingHostIds] = useState<Set<number>>(new Set())
+  const [upgradeOps, setUpgradeOps] = useState<Array<{ hostId: number; hostName: string; processId: number }>>([])
+  const [upgradeDone, setUpgradeDone] = useState<{ success: number; failed: number } | null>(null)
 
-  const { data: upgradeProcess } = useQuery({
-    queryKey: ['process', upgradeOp?.processId],
-    queryFn: () => getProcess(upgradeOp!.processId),
-    enabled: !!upgradeOp?.processId,
-    refetchInterval: 3_000,
+  const { data: upgradeProcessesData } = useQuery({
+    queryKey: ['zone-processes-upgrade', clusterZoneId],
+    queryFn: () => getZoneHistory(clusterZoneId!, { max: 50 }),
+    enabled: !!clusterZoneId && upgradeOps.length > 0,
     staleTime: 0,
+    refetchInterval: upgradeOps.length > 0 ? 3_000 : false,
   })
 
   useEffect(() => {
-    if (!upgradeOp || !upgradeProcess) return
-    const s = upgradeProcess.status.toLowerCase()
-    const isDone = s === 'complete' || s === 'success' || s === 'failed' || s === 'error'
-    if (!isDone) return
-    const success = s === 'complete' || s === 'success'
-    setUpgradeOp(null)
-    setUpgradeDone({ hostId: upgradeOp.hostId, success })
-    setTimeout(() => setUpgradeDone(null), 4_000)
-    if (success) refetch()
-  }, [upgradeProcess, upgradeOp, refetch])
+    if (upgradeOps.length === 0) return
+    const allProcs = upgradeProcessesData?.processes ?? []
+    let successCount = 0
+    let failedCount = 0
+    const remaining: typeof upgradeOps = []
+    for (const op of upgradeOps) {
+      const proc = allProcs.find((p) => p.id === op.processId)
+      if (!proc) { remaining.push(op); continue }
+      const s = proc.status.toLowerCase()
+      if (s === 'complete' || s === 'success') { successCount++; continue }
+      if (s === 'failed' || s === 'error') { failedCount++; continue }
+      remaining.push(op)
+    }
+    if (remaining.length === upgradeOps.length) return
+    setUpgradeOps(remaining)
+    if (remaining.length === 0) {
+      setUpgradeDone({ success: successCount, failed: failedCount })
+      setTimeout(() => setUpgradeDone(null), 5_000)
+      if (successCount > 0) refetch()
+    }
+  }, [upgradeProcessesData, upgradeOps, refetch])
 
   const upgradeMutation = useMutation({
-    mutationFn: (id: number) => upgradeServerAgent(id),
-    onMutate: (id) => setUpgradingHostId(id),
-    onSuccess: (result, id) => {
-      setUpgradingHostId(null)
-      const processId = result.processIds?.[0]
-      const host = (data?.servers ?? []).find((s) => s.id === id)
-      if (processId) {
-        setUpgradeOp({ hostId: id, hostName: host?.name ?? String(id), processId })
+    mutationFn: (ids: number[]) =>
+      Promise.all(ids.map((id) => upgradeServerAgent(id).then((r) => ({ id, result: r })))),
+    onMutate: (ids) => setUpgradingHostIds(new Set(ids)),
+    onSuccess: (results) => {
+      setUpgradingHostIds(new Set())
+      const ops: typeof upgradeOps = []
+      for (const { id, result } of results) {
+        const processId = result.processIds?.[0]
+        const host = (data?.servers ?? []).find((s) => s.id === id)
+        if (processId) ops.push({ hostId: id, hostName: host?.name ?? String(id), processId })
+      }
+      setSelected(new Set())
+      setActionsOpen(false)
+      if (ops.length > 0) {
+        setUpgradeOps(ops)
       } else {
-        setUpgradeDone({ hostId: id, success: true })
-        setTimeout(() => setUpgradeDone(null), 4_000)
+        setUpgradeDone({ success: results.length, failed: 0 })
+        setTimeout(() => setUpgradeDone(null), 5_000)
         refetch()
       }
     },
-    onError: (_, id) => {
-      setUpgradingHostId(null)
-      setUpgradeDone({ hostId: id, success: false })
-      setTimeout(() => setUpgradeDone(null), 4_000)
+    onError: () => {
+      setUpgradingHostIds(new Set())
+      setUpgradeDone({ success: 0, failed: 1 })
+      setTimeout(() => setUpgradeDone(null), 5_000)
     },
   })
 
@@ -355,6 +375,12 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
     .filter((s) => clusterServerIds.includes(s.id))
     .sort((a, b) => a.name.localeCompare(b.name))
 
+  const toggleSelect = (id: number) =>
+    setSelected((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
+
+  const toggleAll = () =>
+    setSelected(selected.size === hosts.length ? new Set() : new Set(hosts.map((h) => h.id)))
+
   if (isLoading) return <PageLoader />
 
   return (
@@ -391,7 +417,7 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
       )}
 
       {/* ── Agent upgrade progress banner ── */}
-      {upgradeOp && (
+      {upgradeOps.length > 0 && (
         <div
           className="flex items-center gap-3 px-4 py-3 rounded-lg"
           style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.3)' }}
@@ -399,41 +425,78 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
           <Loader2 size={16} className="animate-spin shrink-0" style={{ color: '#60A5FA' }} />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium" style={{ color: '#60A5FA' }}>
-              Upgrading agent on {upgradeOp.hostName}…
+              Upgrading agent{upgradeOps.length > 1 ? `s on ${upgradeOps.length} hosts` : ` on ${upgradeOps[0].hostName}`}…
             </p>
-            {upgradeProcess && (
+            {upgradeOps.length > 1 && (
               <p className="text-2xs mt-0.5" style={{ color: '#566278' }}>
-                {upgradeProcess.message ?? upgradeProcess.status}
-                {upgradeProcess.percent != null && upgradeProcess.percent > 0 ? ` — ${upgradeProcess.percent}%` : ''}
+                {upgradeOps.map((op) => op.hostName).join(', ')}
               </p>
             )}
+            <p className="text-2xs mt-0.5" style={{ color: '#566278' }}>Monitoring task progress…</p>
           </div>
         </div>
       )}
-      {upgradeDone && (
+      {upgradeDone && upgradeOps.length === 0 && (
         <div
           className="flex items-center gap-3 px-4 py-3 rounded-lg"
           style={{
-            background: upgradeDone.success ? 'rgba(0,179,136,0.1)' : 'rgba(239,68,68,0.08)',
-            border: `1px solid ${upgradeDone.success ? 'rgba(0,179,136,0.3)' : 'rgba(239,68,68,0.2)'}`,
+            background: upgradeDone.failed === 0 ? 'rgba(0,179,136,0.1)' : 'rgba(239,68,68,0.08)',
+            border: `1px solid ${upgradeDone.failed === 0 ? 'rgba(0,179,136,0.3)' : 'rgba(239,68,68,0.2)'}`,
           }}
         >
-          {upgradeDone.success
+          {upgradeDone.failed === 0
             ? <CheckCircle2 size={16} style={{ color: '#00B388' }} />
             : <XCircle size={16} style={{ color: '#EF4444' }} />
           }
-          <p className="text-xs font-medium" style={{ color: upgradeDone.success ? '#00B388' : '#EF4444' }}>
-            {upgradeDone.success ? 'Agent upgrade completed' : 'Agent upgrade failed — check VME Manager'}
+          <p className="text-xs font-medium" style={{ color: upgradeDone.failed === 0 ? '#00B388' : '#EF4444' }}>
+            {upgradeDone.failed === 0
+              ? `Agent upgrade completed${upgradeDone.success > 1 ? ` for ${upgradeDone.success} hosts` : ''}`
+              : `${upgradeDone.failed} upgrade${upgradeDone.failed > 1 ? 's' : ''} failed — check VME Manager`
+            }
+            {upgradeDone.success > 0 && upgradeDone.failed > 0 && `, ${upgradeDone.success} succeeded`}
           </p>
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-white">Hosts</h3>
-          <p className="text-xs mt-0.5" style={{ color: '#566278' }}>
-            {hosts.length} host{hosts.length !== 1 ? 's' : ''} in cluster
-          </p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Hosts</h3>
+            <p className="text-xs mt-0.5" style={{ color: '#566278' }}>
+              {selected.size > 0
+                ? `${selected.size} of ${hosts.length} selected`
+                : `${hosts.length} host${hosts.length !== 1 ? 's' : ''} in cluster`}
+            </p>
+          </div>
+          {selected.size > 0 && (
+            <div className="relative">
+              <button
+                className="btn btn-secondary py-1.5 px-3"
+                onClick={() => setActionsOpen((v) => !v)}
+                disabled={upgradeMutation.isPending || upgradeOps.length > 0}
+              >
+                Actions
+                <ChevronDown size={12} />
+              </button>
+              {actionsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setActionsOpen(false)} />
+                  <div
+                    className="absolute left-0 top-full mt-1 z-50 rounded-lg py-1"
+                    style={{ background: '#141C2E', border: '1px solid #1E2A45', minWidth: 200 }}
+                  >
+                    <button
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-white/5"
+                      onClick={() => { setActionsOpen(false); upgradeMutation.mutate([...selected]) }}
+                    >
+                      <RefreshCw size={13} style={{ color: '#60A5FA' }} />
+                      Upgrade Agents ({selected.size})
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <button className="btn btn-ghost py-1 px-2" onClick={() => refetch()}>
           <RefreshCw size={13} className={clsx(isFetching && 'animate-spin')} />
@@ -451,6 +514,15 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
           <table className="data-table">
             <thead>
               <tr>
+                <th style={{ width: 32 }}>
+                  <input
+                    type="checkbox"
+                    checked={hosts.length > 0 && selected.size === hosts.length}
+                    ref={(el) => { if (el) el.indeterminate = selected.size > 0 && selected.size < hosts.length }}
+                    onChange={toggleAll}
+                    style={{ cursor: 'pointer', accentColor: '#00B388' }}
+                  />
+                </th>
                 <th>Name</th>
                 <th>Status</th>
                 <th>IP Address</th>
@@ -470,13 +542,22 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
                 const memPct = memMax > 0 ? (memUsed / memMax) * 100 : 0
 
                 const isMaintHost = maintOp?.hostId === server.id
+                const isUpgrading = upgradingHostIds.has(server.id) || upgradeOps.some((op) => op.hostId === server.id)
 
                 return (
                   <tr
                     key={server.id}
-                    className={clsx('cursor-pointer', isMaintHost && 'opacity-60')}
-                    onClick={(e) => { if ((e.target as HTMLElement).closest('button')) return; navigate(`/hosts/${server.id}`) }}
+                    className={clsx('cursor-pointer', (isMaintHost || isUpgrading) && 'opacity-60')}
+                    onClick={(e) => { if ((e.target as HTMLElement).closest('button,input')) return; navigate(`/hosts/${server.id}`) }}
                   >
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(server.id)}
+                        onChange={() => toggleSelect(server.id)}
+                        style={{ cursor: 'pointer', accentColor: '#00B388' }}
+                      />
+                    </td>
                     <td>
                       <div className="flex items-center gap-2">
                         {isMaintHost
@@ -531,19 +612,19 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
                     <td style={{ color: '#566278' }}>{server.osMorpheusType ?? server.osType ?? '—'}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs" style={{ color: upgradeDone?.hostId === server.id && upgradeDone.success ? '#00B388' : '#566278' }}>
+                        <span className="font-mono text-xs" style={{ color: '#566278' }}>
                           {server.agentVersion ?? '—'}
                         </span>
                         {server.agentInstalled && (
                           <button
                             className="btn btn-ghost py-0.5 px-1.5 text-xs"
-                            disabled={upgradingHostId === server.id || upgradeOp?.hostId === server.id || !!upgradeOp}
-                            onClick={() => upgradeMutation.mutate(server.id)}
+                            disabled={isUpgrading || upgradeMutation.isPending}
+                            onClick={() => upgradeMutation.mutate([server.id])}
                             title="Upgrade agent"
                           >
-                            {upgradingHostId === server.id || upgradeOp?.hostId === server.id
+                            {isUpgrading
                               ? <Loader2 size={11} className="animate-spin" style={{ color: '#60A5FA' }} />
-                              : <RefreshCw size={11} style={{ color: upgradeDone?.hostId === server.id && upgradeDone.success ? '#00B388' : '#566278' }} />
+                              : <RefreshCw size={11} style={{ color: '#566278' }} />
                             }
                           </button>
                         )}
