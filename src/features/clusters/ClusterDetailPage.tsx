@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCluster } from '@/api/clouds'
 import { listInstances, deleteInstance } from '@/api/instances'
-import { listServers, getZoneHistory, startServer, stopServer, restartServer, moveServer, setServerPlacementStrategy, enableMaintenanceMode, leaveMaintenanceMode } from '@/api/servers'
+import { listServers, getZoneHistory, startServer, stopServer, restartServer, moveServer, setServerPlacementStrategy, enableMaintenanceMode, leaveMaintenanceMode, upgradeServerAgent } from '@/api/servers'
 import { PageLoader } from '@/components/common/LoadingSpinner'
 import { StatusBadge } from '@/components/common/StatusDot'
 import { ArrowLeft, Layers, Server, Monitor, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle, Play, Square, RotateCcw, MoveRight, Loader2, CheckCircle2, Wrench, Tag, ChevronDown, Trash2, Disc } from 'lucide-react'
@@ -272,6 +272,20 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
     staleTime: 60_000,
   })
 
+  const [upgradingHostId, setUpgradingHostId] = useState<number | null>(null)
+  const [upgradeJustDone, setUpgradeJustDone] = useState<number | null>(null)
+
+  const upgradeMutation = useMutation({
+    mutationFn: (id: number) => upgradeServerAgent(id),
+    onMutate: (id) => setUpgradingHostId(id),
+    onSettled: (_, __, id) => {
+      setUpgradingHostId(null)
+      setUpgradeJustDone(id)
+      setTimeout(() => setUpgradeJustDone(null), 3_000)
+      refetch()
+    },
+  })
+
   const maintenanceMutation = useMutation({
     mutationFn: ({ id, enable }: { id: number; enable: boolean }) =>
       enable ? enableMaintenanceMode(id) : leaveMaintenanceMode(id),
@@ -445,7 +459,26 @@ function ClusterHostsTab({ clusterServerIds, clusterZoneId }: { clusterServerIds
                       </span>
                     </td>
                     <td style={{ color: '#566278' }}>{server.osMorpheusType ?? server.osType ?? '—'}</td>
-                    <td style={{ color: '#566278' }}>{server.agentVersion ?? '—'}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs" style={{ color: upgradeJustDone === server.id ? '#00B388' : '#566278' }}>
+                          {server.agentVersion ?? '—'}
+                        </span>
+                        {server.agentInstalled && (
+                          <button
+                            className="btn btn-ghost py-0.5 px-1.5 text-xs"
+                            disabled={upgradingHostId === server.id}
+                            onClick={() => upgradeMutation.mutate(server.id)}
+                            title="Upgrade agent"
+                          >
+                            {upgradingHostId === server.id
+                              ? <Loader2 size={11} className="animate-spin" style={{ color: '#60A5FA' }} />
+                              : <RefreshCw size={11} style={{ color: upgradeJustDone === server.id ? '#00B388' : '#566278' }} />
+                            }
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       {(() => {
                         const inMaint = !!(server.maintenanceMode || server.status === 'maintenance' || server.status === 'maintenancing')

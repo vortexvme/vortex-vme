@@ -77,6 +77,11 @@ export async function leaveMaintenanceMode(id: number) {
   return resp.data
 }
 
+export async function upgradeServerAgent(id: number): Promise<{ success: boolean; processIds?: number[] }> {
+  const resp = await apiClient.put<{ success: boolean; processIds?: number[] }>(`/api/servers/${id}/upgrade`)
+  return resp.data
+}
+
 export async function updateServer(id: number, payload: { description?: string; name?: string }) {
   const resp = await apiClient.put<{ server: ComputeServer }>(`/api/servers/${id}`, {
     server: payload,
