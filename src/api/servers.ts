@@ -82,6 +82,11 @@ export async function upgradeServerAgent(id: number): Promise<{ success: boolean
   return resp.data
 }
 
+export async function getProcess(id: number): Promise<import('@/types/morpheus').ProcessEvent> {
+  const resp = await apiClient.get<{ process: import('@/types/morpheus').ProcessEvent }>(`/api/processes/${id}`)
+  return resp.data.process
+}
+
 export async function updateServer(id: number, payload: { description?: string; name?: string }) {
   const resp = await apiClient.put<{ server: ComputeServer }>(`/api/servers/${id}`, {
     server: payload,
