@@ -3,7 +3,7 @@
  * Injected at deploy time via window.__VME_MANAGER_URL__ in index.html.
  * Falls back to the current origin if not set (useful during local dev).
  */
-export function getVmeManagerUrl(): string {
+function getVmeManagerUrl(): string {
   const injected = (window as unknown as { __VME_MANAGER_URL__?: string }).__VME_MANAGER_URL__
   if (injected && injected !== 'VME_MANAGER_URL_PLACEHOLDER') {
     return injected.replace(/\/$/, '')

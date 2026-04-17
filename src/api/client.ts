@@ -11,7 +11,7 @@ export function getAccessToken(): string | null {
   return store.getItem(STORAGE_KEY_ACCESS)
 }
 
-export function getRefreshToken(): string | null {
+function getRefreshToken(): string | null {
   const remember = localStorage.getItem(STORAGE_KEY_REMEMBER) === 'true'
   const store = remember ? localStorage : sessionStorage
   return store.getItem(STORAGE_KEY_REFRESH)

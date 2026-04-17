@@ -1,14 +1,12 @@
 import { apiClient } from './client'
 import {
   Instance,
-  Container,
   InstancesResponse,
   SnapshotsResponse,
   ProcessesResponse,
-  ProcessEvent,
 } from '@/types/morpheus'
 
-export interface ListInstancesParams {
+interface ListInstancesParams {
   max?: number
   offset?: number
   phrase?: string
@@ -34,23 +32,6 @@ export async function getInstance(id: number): Promise<Instance> {
   return resp.data.instance
 }
 
-export async function getContainer(id: number): Promise<Container> {
-  const resp = await apiClient.get<{ container: Container & { networkInterfaces?: Container['interfaces'] } }>(
-    `/api/containers/${id}`,
-  )
-  const c = resp.data.container
-  // Morpheus may return networkInterfaces instead of interfaces
-  if (!c.interfaces?.length && c.networkInterfaces?.length) {
-    c.interfaces = c.networkInterfaces
-  }
-  return c
-}
-
-export async function getProcess(id: number): Promise<ProcessEvent> {
-  const resp = await apiClient.get<{ process: ProcessEvent }>(`/api/processes/${id}`)
-  return resp.data.process
-}
-
 export async function listProcessesByInstance(
   id: number,
   params: { max?: number } = {},
@@ -58,17 +39,6 @@ export async function listProcessesByInstance(
   const resp = await apiClient.get<ProcessesResponse>('/api/processes', {
     params: { instanceId: id, max: 5, ...params },
   })
-  return resp.data
-}
-
-export async function getInstanceHistory(
-  id: number,
-  params: { max?: number; offset?: number } = {},
-): Promise<ProcessesResponse> {
-  const resp = await apiClient.get<ProcessesResponse>(
-    `/api/instances/${id}/history`,
-    { params: { max: 50, ...params } },
-  )
   return resp.data
 }
 
@@ -133,7 +103,7 @@ export async function revertSnapshot(instanceId: number, snapshotId: number) {
 
 // ─── Create ───────────────────────────────────────────────────────────────────
 
-export interface CreateInstancePayload {
+interface CreateInstancePayload {
   instance: {
     name: string
     description?: string
@@ -154,13 +124,6 @@ export async function createInstance(payload: CreateInstancePayload) {
   return resp.data
 }
 
-export async function updateInstance(id: number, payload: { description?: string }) {
-  const resp = await apiClient.put<{ instance: Instance }>(`/api/instances/${id}`, {
-    instance: payload,
-  })
-  return resp.data.instance
-}
-
 export async function deleteInstance(id: number, force = false) {
   const resp = await apiClient.delete(`/api/instances/${id}`, {
     params: { force },
@@ -168,11 +131,3 @@ export async function deleteInstance(id: number, force = false) {
   return resp.data
 }
 
-// ─── Console ──────────────────────────────────────────────────────────────────
-
-export async function getConsoleUrl(id: number): Promise<{ url: string }> {
-  const resp = await apiClient.get<{ url: string }>(
-    `/api/instances/${id}/console`,
-  )
-  return resp.data
-}

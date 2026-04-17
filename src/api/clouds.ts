@@ -1,12 +1,9 @@
 import { apiClient } from './client'
 import {
   ZonesResponse,
-  Zone,
   Cluster,
   ClustersResponse,
-  ServerGroupsResponse,
   NetworksResponse,
-  StorageVolumesResponse,
   DataStore,
   DataStoresResponse,
   ResourcePool,
@@ -17,11 +14,6 @@ export async function listZones(params: { max?: number } = {}): Promise<ZonesRes
     params: { max: 100, ...params },
   })
   return resp.data
-}
-
-export async function getZone(id: number): Promise<Zone> {
-  const resp = await apiClient.get<{ zone: Zone }>(`/api/zones/${id}`)
-  return resp.data.zone
 }
 
 export async function listClusters(
@@ -38,31 +30,12 @@ export async function getCluster(id: number): Promise<Cluster> {
   return resp.data.cluster
 }
 
-export async function listServerGroups(
-  params: { max?: number } = {},
-): Promise<ServerGroupsResponse> {
-  const resp = await apiClient.get<ServerGroupsResponse>('/api/server-groups', {
-    params: { max: 100, ...params },
-  })
-  return resp.data
-}
-
 export async function listNetworks(
   params: { max?: number; zoneId?: number } = {},
 ): Promise<NetworksResponse> {
   const resp = await apiClient.get<NetworksResponse>('/api/networks', {
     params: { max: 100, ...params },
   })
-  return resp.data
-}
-
-export async function listStorageVolumes(
-  params: { max?: number } = {},
-): Promise<StorageVolumesResponse> {
-  const resp = await apiClient.get<StorageVolumesResponse>(
-    '/api/storage-volumes',
-    { params: { max: 100, ...params } },
-  )
   return resp.data
 }
 
@@ -98,9 +71,3 @@ export async function listResourcePools(zoneId: number): Promise<ResourcePool[]>
   return resp.data.resourcePools ?? []
 }
 
-export async function listInstanceTypes() {
-  const resp = await apiClient.get('/api/library/instance-types', {
-    params: { max: 50 },
-  })
-  return resp.data
-}

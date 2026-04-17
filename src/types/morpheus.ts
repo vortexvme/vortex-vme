@@ -342,31 +342,6 @@ export interface SnapshotsResponse {
   snapshots: Snapshot[]
 }
 
-// ─── Stats (time-series) ─────────────────────────────────────────────────────
-
-export interface StatPoint {
-  time: string
-  value: number
-}
-
-export interface InstanceStats {
-  instanceId?: number
-  usedMemory?: number
-  maxMemory?: number
-  usedStorage?: number
-  maxStorage?: number
-  cpuUsage?: number
-  networkRxUsage?: number
-  networkTxUsage?: number
-  statsData?: {
-    memory?: StatPoint[]
-    cpu?: StatPoint[]
-    networkRx?: StatPoint[]
-    networkTx?: StatPoint[]
-    disk?: StatPoint[]
-  }
-}
-
 // ─── Task / History ───────────────────────────────────────────────────────────
 
 export interface ProcessEvent {
@@ -429,26 +404,6 @@ export interface NetworksResponse {
 
 // ─── Data Store ───────────────────────────────────────────────────────────────
 
-// ─── Virtual Image ────────────────────────────────────────────────────────────
-
-export interface VirtualImage {
-  id: number
-  name: string
-  imageType: string
-  status: string
-  osType?: { id: number; name: string; code?: string }
-  rawSize?: number
-  rawSizeGB?: number
-  visibility?: string
-  dateCreated?: string
-  lastUpdated?: string
-}
-
-export interface VirtualImagesResponse {
-  virtualImages: VirtualImage[]
-  meta: PaginationMeta
-}
-
 export interface DataStore {
   id: number
   name: string
@@ -489,30 +444,3 @@ export interface StorageVolumesResponse {
   meta: PaginationMeta
 }
 
-// ─── Provision Options ────────────────────────────────────────────────────────
-
-export interface ProvisionType {
-  id: number
-  name: string
-  code: string
-}
-
-export interface ServicePlan {
-  id: number
-  name: string
-  code: string
-  maxCores?: number
-  maxMemory?: number
-  maxStorage?: number
-  customCpu?: boolean
-  customCores?: boolean
-  customMaxMemory?: boolean
-}
-
-export interface Layout {
-  id: number
-  name: string
-  code: string
-  instanceType?: { id: number; code: string; name: string }
-  provisionType?: { id: number; code: string; name: string }
-}

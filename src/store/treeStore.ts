@@ -1,24 +1,5 @@
 import { create } from 'zustand'
 
-export type TreeNodeType =
-  | 'root'
-  | 'datacenter'
-  | 'cluster'
-  | 'host'
-  | 'vm'
-  | 'networks'
-  | 'storage'
-  | 'templates'
-
-export interface TreeNode {
-  id: string
-  label: string
-  type: TreeNodeType
-  entityId?: number
-  children?: TreeNode[]
-  status?: string
-}
-
 interface TreeState {
   expanded: Set<string>
   selected: string | null
