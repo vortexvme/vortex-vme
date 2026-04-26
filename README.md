@@ -19,7 +19,7 @@ for managing Morpheus VM Essentials environments — without learning a new UI p
 ### Key Features
 
 | Feature | Details |
-|---------|---------|
+| ------- | ------- |
 | **Dark enterprise-style UI** | Navy topbar, collapsible 280px inventory tree, tabbed detail views |
 | **Enterprise aesthetics** | Green (`#00B388`) accents, clean font stack, enterprise aesthetics |
 | **Secure Authentication** | `POST /oauth/token` with `grant_type=password`; tokens in `localStorage`/`sessionStorage` |
@@ -39,7 +39,7 @@ for managing Morpheus VM Essentials environments — without learning a new UI p
 ## Tech Stack
 
 | Layer | Choice | Rationale |
-|-------|--------|-----------|
+| ----- | ------ | --------- |
 | Framework | **React 18** | Best ecosystem for complex enterprise UIs |
 | Language | **TypeScript 5** | Type safety across API types and components |
 | Build | **Vite 5** | Fast HMR, optimised chunking, simple config |
@@ -78,7 +78,7 @@ sudo bash deploy.sh
 
 After ~2 minutes you'll see:
 
-```
+```text
 ✅ Vortex deployed successfully!
 
   Dashboard:   https://morpheus-proxy.example.com/
@@ -148,7 +148,7 @@ never stores or logs credentials. Port 80 is not configured.
 
 ## Authentication Flow
 
-```
+```text
 Browser → POST /oauth/token (grant_type=password, username, password, client_id=morph-api)
        ← { access_token, refresh_token, expires_in }
 
@@ -182,8 +182,8 @@ features.
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
+| Variable  | Required  | Description                                                       |
+| --------- | --------- | ----------------------------------------------------------------- |
 | `VME_URL` | Prod only | VME Manager base URL — used by `deploy.sh` for Nginx proxy config |
 
 ---
